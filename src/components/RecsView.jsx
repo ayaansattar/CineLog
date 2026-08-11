@@ -75,7 +75,7 @@ export default function RecsView({ onAsk, onAdd, recommendations, meta, loading,
 
       {loading && (
         <p className="mb-4 text-sm text-[var(--muted)]">
-          Building a TMDB candidate pool and asking Claude to pick from it…
+          Building a TMDB candidate pool and asking Gemini to pick from it…
         </p>
       )}
 

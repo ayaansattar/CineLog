@@ -1,6 +1,6 @@
 # CineLog
 
-Personal movie/TV tracker with TMDB search and (soon) AI recommendations.
+Personal movie/TV tracker with TMDB search and Gemini recommendations.
 
 ## Setup
 
@@ -19,7 +19,7 @@ cp .env.example .env
 Edit `.env` and set:
 
 - `TMDB_API_KEY` — from [TMDB settings](https://www.themoviedb.org/settings/api) (you can deploy first, then paste the key into Railway later)
-- `ANTHROPIC_API_KEY` — optional until the AI feature lands
+- `GEMINI_API_KEY` — from [Google AI Studio](https://aistudio.google.com/apikey) (needed for the Recs tab)
 - `DATABASE_URL` — leave as `file:./dev.db` for local SQLite
 
 3. **Create the database**
@@ -65,7 +65,7 @@ One Node service: Express serves the Vite `dist/` build and `/api` on the same p
 | `NODE_ENV` | `production` |
 | `DATABASE_URL` | `file:/app/data/cinelog.db` |
 | `TMDB_API_KEY` | your key (add when you have it) |
-| `ANTHROPIC_API_KEY` | optional for now |
+| `GEMINI_API_KEY` | your Google AI Studio key (for Recs) |
 
 5. Generate a public domain: service → **Settings → Networking → Generate Domain**.
 6. Use that `*.up.railway.app` URL on the TMDB API key application form as your website / application URL.
@@ -82,6 +82,7 @@ Build/start are defined in `railway.json` (`npm run build` / `npm start`). Healt
 - Half-star ratings (0–5); rating a title moves it to Watched
 - One-time Letterboxd CSV import (`data/watched.csv` + `npm run import:letterboxd`)
 - Move titles between statuses or remove them from library cards
+- Recs tab: Gemini ranks a TMDB candidate pool (similar/recs + trending) into 6 grounded picks
 - Production deploy config for Railway + persistent SQLite volume
 
 ## Letterboxd / PDF import
@@ -90,4 +91,4 @@ See [`data/README.md`](./data/README.md). Batch importers live under `scripts/` 
 
 ## Next up
 
-Plain-text import, AI recommendations, finish Railway deploy.
+Finish Railway deploy.

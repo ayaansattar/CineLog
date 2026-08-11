@@ -1,60 +1,68 @@
 import { Router } from 'express';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import prisma from '../db.js';
 import { buildCandidatePool } from '../candidates.js';
 
 const router = Router();
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
-function getAnthropicClient() {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || apiKey === 'your_anthropic_api_key_here') {
-    const err = new Error('ANTHROPIC_API_KEY is not configured');
+function getGeminiModel() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+    const err = new Error('GEMINI_API_KEY is not configured');
     err.status = 503;
     throw err;
   }
-  return new Anthropic({ apiKey });
-}
 
-const recommendTool = {
-  name: 'submit_recommendations',
-  description:
-    'Submit exactly 6 movie/TV recommendations chosen only from the provided candidate pool.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      recommendations: {
-        type: 'array',
-        minItems: 1,
-        maxItems: 6,
-        items: {
-          type: 'object',
-          properties: {
-            candidateId: {
-              type: 'string',
-              description: 'The candidate id from the pool (e.g. c0, c12)',
-            },
-            reason: {
-              type: 'string',
-              description: 'One short sentence explaining why this fits the request',
-            },
-            tag: {
-              type: 'string',
-              enum: ['matches_taste', 'popular_pick'],
-              description:
-                'matches_taste if aligned with the user\'s high ratings; popular_pick if a broader crowd-pleaser',
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({
+    model: MODEL,
+    systemInstruction: `You are CineLog's recommendation engine for a single user's personal movie/TV library.
+
+Rules:
+- You MUST pick ONLY from the candidate pool provided in the user message.
+- Never invent titles, years, or ids that are not in the pool.
+- Return exactly 6 recommendations (or fewer only if the pool is smaller than 6).
+- Prefer diversity: mix media types when appropriate, avoid near-duplicates.
+- Tag each pick as matches_taste (fits their ratings) or popular_pick (broader appeal).
+- Reasons should be specific to the user's request and brief (one sentence).`,
+    generationConfig: {
+      temperature: 0.4,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: SchemaType.OBJECT,
+        properties: {
+          recommendations: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                candidateId: {
+                  type: SchemaType.STRING,
+                  description: 'The candidate id from the pool (e.g. c0, c12)',
+                },
+                reason: {
+                  type: SchemaType.STRING,
+                  description: 'One short sentence explaining why this fits the request',
+                },
+                tag: {
+                  type: SchemaType.STRING,
+                  format: 'enum',
+                  enum: ['matches_taste', 'popular_pick'],
+                  description:
+                    "matches_taste if aligned with the user's high ratings; popular_pick if a broader crowd-pleaser",
+                },
+              },
+              required: ['candidateId', 'reason', 'tag'],
             },
           },
-          required: ['candidateId', 'reason', 'tag'],
-          additionalProperties: false,
         },
+        required: ['recommendations'],
       },
     },
-    required: ['recommendations'],
-    additionalProperties: false,
-  },
-};
+  });
+}
 
 /**
  * POST /api/recs
@@ -70,7 +78,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'query must be 500 characters or less' });
     }
 
-    const client = getAnthropicClient();
+    const model = getGeminiModel();
     const { tasteProfile, candidates, seeds } = await buildCandidatePool(prisma);
 
     if (candidates.length < 6) {
@@ -90,16 +98,6 @@ router.post('/', async (req, res) => {
       overview: c.overview,
     }));
 
-    const system = `You are CineLog's recommendation engine for a single user's personal movie/TV library.
-
-Rules:
-- You MUST pick ONLY from the candidate pool provided in the user message.
-- Never invent titles, years, or ids that are not in the pool.
-- Return exactly 6 recommendations via the submit_recommendations tool (or fewer only if the pool is smaller than 6).
-- Prefer diversity: mix media types when appropriate, avoid near-duplicates.
-- Tag each pick as matches_taste (fits their ratings) or popular_pick (broader appeal).
-- Reasons should be specific to the user's request and brief (one sentence).`;
-
     const userContent = JSON.stringify({
       request: query,
       tasteProfile,
@@ -107,24 +105,18 @@ Rules:
       candidates: poolForModel,
     });
 
-    const message = await client.messages.create({
-      model: MODEL,
-      max_tokens: 1500,
-      system,
-      tools: [recommendTool],
-      tool_choice: { type: 'tool', name: 'submit_recommendations' },
-      messages: [
-        {
-          role: 'user',
-          content: `Recommend titles for this request. Candidate pool and taste profile follow as JSON:\n${userContent}`,
-        },
-      ],
-    });
-
-    const toolBlock = message.content.find(
-      (block) => block.type === 'tool_use' && block.name === 'submit_recommendations'
+    const result = await model.generateContent(
+      `Recommend titles for this request. Candidate pool and taste profile follow as JSON:\n${userContent}`
     );
-    if (!toolBlock || !toolBlock.input?.recommendations) {
+
+    let parsed;
+    try {
+      parsed = JSON.parse(result.response.text());
+    } catch {
+      return res.status(502).json({ error: 'Model did not return valid JSON recommendations' });
+    }
+
+    if (!Array.isArray(parsed?.recommendations)) {
       return res.status(502).json({ error: 'Model did not return structured recommendations' });
     }
 
@@ -132,7 +124,7 @@ Rules:
     const seen = new Set();
     const recommendations = [];
 
-    for (const pick of toolBlock.input.recommendations) {
+    for (const pick of parsed.recommendations) {
       const candidate = byId.get(pick.candidateId);
       if (!candidate || seen.has(candidate.id)) continue;
       seen.add(candidate.id);
@@ -168,11 +160,18 @@ Rules:
   } catch (err) {
     console.error('POST /api/recs', err);
     const status = err.status || err.statusCode || 500;
-    const message =
-      status === 503
-        ? err.message
-        : err.message || 'Recommendation request failed';
-    res.status(status >= 400 && status < 600 ? status : 500).json({ error: message });
+    let message = err.message || 'Recommendation request failed';
+
+    // Surface common Gemini / Google Generative AI errors more clearly
+    if (err.message?.includes('API_KEY_INVALID') || err.message?.includes('API key not valid')) {
+      message = 'GEMINI_API_KEY is invalid';
+    } else if (err.status === 429 || err.message?.includes('429')) {
+      message = 'Gemini rate limit hit — try again in a moment';
+    }
+
+    res.status(status >= 400 && status < 600 ? status : 500).json({
+      error: status === 503 ? err.message : message,
+    });
   }
 });
 

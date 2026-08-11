@@ -16,7 +16,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.116.0",
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.14.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",

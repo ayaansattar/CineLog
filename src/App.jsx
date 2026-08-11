@@ -175,7 +175,7 @@ export default function App() {
       ? 'Search TMDB and add movies or shows to your library.'
       : view === 'library'
         ? 'Browse watchlist, currently watching, and watched titles.'
-        : 'Ask for suggestions grounded in TMDB — Claude only picks from a live candidate pool.';
+        : 'Ask for suggestions grounded in TMDB — Gemini only picks from a live candidate pool.';
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
