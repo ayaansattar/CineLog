@@ -10,9 +10,12 @@ datasource db {
 model Section {
   id        String   @id @default(cuid())
   name      String
+  mediaType String   @default("movie")
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   entries   Entry[]
+
+  @@index([mediaType])
 }
 
 model Entry {

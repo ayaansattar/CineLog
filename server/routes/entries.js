@@ -104,13 +104,29 @@ router.put('/reorder', requireAuth, async (req, res) => {
 
     const found = await prisma.entry.findMany({
       where: { id: { in: uniqueIds } },
-      select: { id: true },
+      select: { id: true, mediaType: true },
     });
     if (found.length !== uniqueIds.length) {
       return res.status(400).json({ error: 'one or more entries not found' });
     }
 
-    // Single UPDATE avoids row-lock deadlocks from many parallel updates.
+    if (sectionId !== undefined && sectionId !== null) {
+      const section = await prisma.section.findUnique({ where: { id: sectionId } });
+      if (!section) return res.status(400).json({ error: 'section not found' });
+      if (found.some((e) => e.mediaType !== section.mediaType)) {
+        return res.status(400).json({
+          error: `all titles must be ${section.mediaType} to join this heading`,
+        });
+      }
+    } else if (sectionId === null) {
+      // unsorted — ok
+    } else {
+      // no section change: still ok
+      const mediaTypes = new Set(found.map((e) => e.mediaType));
+      if (mediaTypes.size > 1) {
+        return res.status(400).json({ error: 'cannot reorder mixed movie and TV titles together' });
+      }
+    }
     const orderCase = Prisma.join(
       uniqueIds.map((id, index) => Prisma.sql`WHEN ${id} THEN ${index}`),
       ' ',
@@ -253,6 +269,12 @@ router.patch('/:id', requireAuth, async (req, res) => {
           where: { id: String(req.body.sectionId) },
         });
         if (!section) return res.status(400).json({ error: 'section not found' });
+        const entryMediaType = data.mediaType ?? existing.mediaType;
+        if (section.mediaType !== entryMediaType) {
+          return res.status(400).json({
+            error: `section is for ${section.mediaType}, but this title is ${entryMediaType}`,
+          });
+        }
         data.sectionId = section.id;
       }
 

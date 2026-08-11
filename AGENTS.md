@@ -94,7 +94,7 @@ docs/                GitHub Pages landing (TMDB app URL)
 
 - Env: copy `.env.example` → `.env`. `DATABASE_URL` = Neon Postgres (`?sslmode=require`). `TMDB_API_KEY` + `GEMINI_API_KEY` for search/recs; `AUTH_PASSWORD` for write/recs protection; never expose secrets to the client.
 - Auth: cookie session after password login. GET library/search stay public; POST/PATCH/DELETE entries + POST recs require auth.
-- Library: Movies/TV tabs; custom headings (`Section`) group titles across watchlist/watching/watched; assign via card dropdown.
+- Library: Movies/TV tabs; custom headings are scoped per media type (`Section.mediaType`); assign via card dropdown / drag on watchlist & watching.
 - Render: free web service via `render.yaml`. No volume. Point `DATABASE_URL` at Neon. Set `AUTH_PASSWORD` in Render env.
 - Public placeholder for TMDB: https://ayaansattar.github.io/CineLog/
 - Personal import artifacts (`data/*.pdf`, `data/letterboxd-*`, `data/entries-export.json`, zips) are gitignored.

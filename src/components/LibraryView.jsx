@@ -453,6 +453,10 @@ export default function LibraryView({
 
   const effectiveSort = tab === 'watching' && sortBy === 'addedAt' ? 'progressUpdatedAt' : sortBy;
   const canDrag = canEdit && tab !== 'watched';
+  const mediaSections = useMemo(
+    () => sections.filter((s) => s.mediaType === mediaType),
+    [sections, mediaType],
+  );
 
   const filtered = useMemo(() => {
     let list = entries.filter((e) => e.status === tab && e.mediaType === mediaType);
@@ -486,7 +490,7 @@ export default function LibraryView({
       ];
     }
 
-    const byId = new Map(sections.map((s) => [s.id, []]));
+    const byId = new Map(mediaSections.map((s) => [s.id, []]));
     const unsorted = [];
     const searching = Boolean(libraryQuery.trim());
 
@@ -498,7 +502,7 @@ export default function LibraryView({
       }
     }
 
-    const ordered = sections
+    const ordered = mediaSections
       .map((section) => ({
         key: section.id,
         section,
@@ -508,18 +512,18 @@ export default function LibraryView({
       }))
       .filter((group) => group.entries.length > 0 || (canDrag && !searching));
 
-    if (unsorted.length > 0 || (canDrag && sections.length > 0 && !searching)) {
+    if (unsorted.length > 0 || (canDrag && mediaSections.length > 0 && !searching)) {
       ordered.push({
         key: 'unsorted',
         section: null,
-        title: sections.length ? 'Unsorted' : null,
+        title: mediaSections.length ? 'Unsorted' : null,
         sectionId: null,
         entries: sortBySectionOrder(unsorted, effectiveSort),
       });
     }
 
     return ordered;
-  }, [filtered, sections, canDrag, libraryQuery, effectiveSort, tab]);
+  }, [filtered, mediaSections, canDrag, libraryQuery, effectiveSort, tab]);
 
   async function reorderEntry(movingId, targetSectionId, beforeEntryId = null) {
     const allInSection = entries
@@ -558,14 +562,14 @@ export default function LibraryView({
       if (!movingSectionId || typeof overSectionId !== 'string') return;
       if (movingSectionId === overSectionId) return;
 
-      const ids = sections.map((s) => s.id);
+      const ids = mediaSections.map((s) => s.id);
       const from = ids.indexOf(movingSectionId);
       const to = ids.indexOf(overSectionId);
       if (from < 0 || to < 0 || from === to) return;
       const next = [...ids];
       next.splice(from, 1);
       next.splice(to, 0, movingSectionId);
-      await onReorderSections(next);
+      await onReorderSections(next, mediaType);
       return;
     }
 
@@ -605,7 +609,7 @@ export default function LibraryView({
     if (!name || addingHeading) return;
     setAddingHeading(true);
     try {
-      await onCreateSection(name);
+      await onCreateSection(name, mediaType);
       setNewHeading('');
     } finally {
       setAddingHeading(false);
@@ -625,7 +629,7 @@ export default function LibraryView({
   const overlayEntry =
     active?.type === 'entry' ? entries.find((e) => e.id === active.entryId) : null;
   const overlayHeading =
-    active?.type === 'heading' ? sections.find((s) => s.id === active.sectionId) : null;
+    active?.type === 'heading' ? mediaSections.find((s) => s.id === active.sectionId) : null;
 
   return (
     <section>
@@ -741,7 +745,11 @@ export default function LibraryView({
           <input
             value={newHeading}
             onChange={(e) => setNewHeading(e.target.value)}
-            placeholder="New heading (e.g. Comfort watches)"
+            placeholder={
+              mediaType === 'tv'
+                ? 'New TV heading (e.g. Comfort rewatches)'
+                : 'New movie heading (e.g. Comfort watches)'
+            }
             className="min-w-[12rem] flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--accent)]"
           />
           <button
@@ -788,7 +796,7 @@ export default function LibraryView({
                 title={group.title}
                 section={group.section}
                 entries={group.entries}
-                sections={sections}
+                sections={mediaSections}
                 canEdit={canEdit}
                 canDrag={canDrag}
                 editing={Boolean(canDrag && group.section && editingSectionId === group.section.id)}

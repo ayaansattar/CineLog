@@ -3,20 +3,28 @@ import prisma from '../db.js';
 import { requireAuth } from '../auth.js';
 
 const router = Router();
+const MEDIA_TYPES = ['movie', 'tv'];
 
 function serializeSection(section) {
   return {
     id: section.id,
     name: section.name,
+    mediaType: section.mediaType,
     sortOrder: section.sortOrder,
     createdAt: section.createdAt,
   };
 }
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
+    const mediaType = req.query.mediaType ? String(req.query.mediaType) : undefined;
+    if (mediaType && !MEDIA_TYPES.includes(mediaType)) {
+      return res.status(400).json({ error: 'mediaType must be movie or tv' });
+    }
+
     const sections = await prisma.section.findMany({
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      where: mediaType ? { mediaType } : undefined,
+      orderBy: [{ mediaType: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
     res.json(sections.map(serializeSection));
   } catch (err) {
@@ -28,13 +36,20 @@ router.get('/', async (_req, res) => {
 router.post('/', requireAuth, async (req, res) => {
   try {
     const name = String(req.body?.name || '').trim();
+    const mediaType = String(req.body?.mediaType || '').trim();
     if (!name) return res.status(400).json({ error: 'name is required' });
+    if (!MEDIA_TYPES.includes(mediaType)) {
+      return res.status(400).json({ error: 'mediaType must be movie or tv' });
+    }
 
-    const max = await prisma.section.aggregate({ _max: { sortOrder: true } });
+    const max = await prisma.section.aggregate({
+      where: { mediaType },
+      _max: { sortOrder: true },
+    });
     const sortOrder = (max._max.sortOrder ?? -1) + 1;
 
     const section = await prisma.section.create({
-      data: { name, sortOrder },
+      data: { name, mediaType, sortOrder },
     });
     res.status(201).json(serializeSection(section));
   } catch (err) {
@@ -46,14 +61,23 @@ router.post('/', requireAuth, async (req, res) => {
 router.put('/reorder', requireAuth, async (req, res) => {
   try {
     const ids = req.body?.ids;
+    const mediaType = String(req.body?.mediaType || '').trim();
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'ids array required' });
     }
+    if (!MEDIA_TYPES.includes(mediaType)) {
+      return res.status(400).json({ error: 'mediaType must be movie or tv' });
+    }
 
-    const existing = await prisma.section.findMany({ select: { id: true } });
+    const existing = await prisma.section.findMany({
+      where: { mediaType },
+      select: { id: true },
+    });
     const existingIds = new Set(existing.map((s) => s.id));
     if (ids.length !== existingIds.size || ids.some((id) => !existingIds.has(String(id)))) {
-      return res.status(400).json({ error: 'ids must include every section exactly once' });
+      return res.status(400).json({
+        error: 'ids must include every section for this media type exactly once',
+      });
     }
 
     await prisma.$transaction(async (tx) => {
@@ -66,6 +90,7 @@ router.put('/reorder', requireAuth, async (req, res) => {
     });
 
     const sections = await prisma.section.findMany({
+      where: { mediaType },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
     res.json(sections.map(serializeSection));

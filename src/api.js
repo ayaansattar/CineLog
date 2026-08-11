@@ -85,14 +85,15 @@ export function getRecommendations(query, source = 'auto') {
   });
 }
 
-export function getSections() {
-  return request('/api/sections');
+export function getSections(mediaType) {
+  const qs = mediaType ? `?mediaType=${encodeURIComponent(mediaType)}` : '';
+  return request(`/api/sections${qs}`);
 }
 
-export function createSection(name) {
+export function createSection(name, mediaType) {
   return request('/api/sections', {
     method: 'POST',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, mediaType }),
   });
 }
 
@@ -103,10 +104,10 @@ export function updateSection(id, payload) {
   });
 }
 
-export function reorderSections(ids) {
+export function reorderSections(ids, mediaType) {
   return request('/api/sections/reorder', {
     method: 'PUT',
-    body: JSON.stringify({ ids }),
+    body: JSON.stringify({ ids, mediaType }),
   });
 }
 
