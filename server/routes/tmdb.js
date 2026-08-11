@@ -1,41 +1,7 @@
 import { Router } from 'express';
+import { tmdbFetch, yearFromDate } from '../tmdbClient.js';
 
 const router = Router();
-const TMDB_BASE = 'https://api.themoviedb.org/3';
-
-function getApiKey() {
-  return process.env.TMDB_API_KEY;
-}
-
-async function tmdbFetch(path, params = {}) {
-  const apiKey = getApiKey();
-  if (!apiKey || apiKey === 'your_tmdb_api_key_here') {
-    const err = new Error('TMDB_API_KEY is not configured');
-    err.status = 503;
-    throw err;
-  }
-
-  const url = new URL(`${TMDB_BASE}${path}`);
-  url.searchParams.set('api_key', apiKey);
-  for (const [key, value] of Object.entries(params)) {
-    if (value != null && value !== '') url.searchParams.set(key, value);
-  }
-
-  const res = await fetch(url);
-  if (!res.ok) {
-    const body = await res.text();
-    const err = new Error(`TMDB request failed (${res.status}): ${body.slice(0, 200)}`);
-    err.status = res.status === 429 ? 429 : 502;
-    throw err;
-  }
-  return res.json();
-}
-
-function yearFromDate(dateStr) {
-  if (!dateStr) return null;
-  const year = Number(String(dateStr).slice(0, 4));
-  return Number.isFinite(year) ? year : null;
-}
 
 function mapSearchResult(item) {
   const mediaType = item.media_type;

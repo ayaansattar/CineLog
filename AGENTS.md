@@ -47,7 +47,7 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 | 3 | Library views (watchlist / watching / watched grids) | done |
 | 4 | In-progress tracking (watching status, TV S/E, movie progress mark) | done |
 | 5 | Ratings UI | done |
-| 6 | CSV import (Letterboxd) | pending |
+| 6 | CSV import (Letterboxd) | done |
 | 7 | Plain-text import | pending |
 | 8 | AI recommendation chat (candidate pool → Claude → cards) | pending |
 | 9 | Production build + deploy (Railway/Fly + persistent SQLite volume) | in_progress |
@@ -58,10 +58,11 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 - **3**: Library tab with Watchlist / Watching / Watched grids; filters (type, genre) and sort; move status / remove from cards; API accepts `watching` status.
 - **4**: Progress fields (`currentSeason`/`currentEpisode`, `progressMark`, `progressUpdatedAt`); Watching cards show `S2E5` / mark overlay; inline editor + Next ep; start watching defaults TV to S1E1.
 - **5**: Half-star ratings (0–5 / 0.5); click cycles half → full → clear; setting a rating moves entry to Watched; Watched tab defaults to sort by rating.
+- **6**: Letterboxd CSV one-time import via `npm run import:letterboxd` (reads `data/watched.csv`); no Import UI.
 
 ### Next up
 
-- **6**: Letterboxd CSV import.
+- **7**: Plain-text list import.
 
 ## Working notes
 
@@ -69,4 +70,5 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 - Dev: `npm run dev` (Vite `:5173`, API `:3001`, `/api` proxied).
 - DB: `npm run db:push` after schema changes.
 - Spec progress fields are in schema/UI (milestone 4 done).
+- **Letterboxd import**: auto-detects `data/letterboxd-*/`; imports ratings → watched → watchlist. Export folders are gitignored.
 - **Deploy**: pushed `feat: add Railway production deploy config`. Mount volume at `/app/data`, set `DATABASE_URL=file:/app/data/cinelog.db`, `NODE_ENV=production`. Generate `*.up.railway.app` domain for TMDB application URL.
