@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import prisma from '../db.js';
+import { requireAuth } from '../auth.js';
 import { serializeEntry, serializeEntries, storeGenres } from '../utils.js';
 
 const router = Router();
@@ -88,7 +89,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const {
       tmdbId,
@@ -168,7 +169,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', requireAuth, async (req, res) => {
   try {
     const existing = await prisma.entry.findUnique({ where: { id: req.params.id } });
     if (!existing) return res.status(404).json({ error: 'Entry not found' });
@@ -233,7 +234,7 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const existing = await prisma.entry.findUnique({ where: { id: req.params.id } });
     if (!existing) return res.status(404).json({ error: 'Entry not found' });

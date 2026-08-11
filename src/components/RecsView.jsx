@@ -66,6 +66,7 @@ function MetaChip({ children }) {
 }
 
 export default function RecsView({
+  canEdit = false,
   onAsk,
   onAdd,
   onStartWatching,
@@ -105,7 +106,7 @@ export default function RecsView({
 
   function submit(text) {
     const trimmed = (text ?? query).trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading || !canEdit) return;
     setLastQuery(trimmed);
     onAsk(trimmed, sourceMode);
   }
@@ -169,19 +170,22 @@ export default function RecsView({
           </div>
         </div>
 
+        {!canEdit && (
+          <p className="mb-3 text-xs text-[var(--muted)]">Log in to ask for recommendations or add picks.</p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="submit"
-            disabled={loading || !query.trim()}
+            disabled={loading || !query.trim() || !canEdit}
             className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[#1a1208] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? 'Finding picks…' : 'Get recommendations'}
+            {loading ? 'Finding picks…' : canEdit ? 'Get recommendations' : 'Log in to ask'}
           </button>
           {suggestions.map((hint) => (
             <button
               key={hint}
               type="button"
-              disabled={loading}
+              disabled={loading || !canEdit}
               onClick={() => {
                 setQuery(hint);
                 submit(hint);
@@ -327,20 +331,20 @@ export default function RecsView({
                       {fromWatchlist ? (
                         <button
                           type="button"
-                          disabled={busy || !rec.entryId}
+                          disabled={busy || !rec.entryId || !canEdit}
                           onClick={() => onStartWatching(rec)}
                           className="w-full rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[#1a1208] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                         >
-                          {busy ? 'Updating…' : 'Start watching'}
+                          {!canEdit ? 'Log in to edit' : busy ? 'Updating…' : 'Start watching'}
                         </button>
                       ) : (
                         <button
                           type="button"
-                          disabled={busy}
+                          disabled={busy || !canEdit}
                           onClick={() => onAdd(rec)}
                           className="w-full rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[#1a1208] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                         >
-                          {busy ? 'Adding…' : 'Add to watchlist'}
+                          {!canEdit ? 'Log in to add' : busy ? 'Adding…' : 'Add to watchlist'}
                         </button>
                       )}
                     </div>

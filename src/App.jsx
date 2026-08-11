@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react';
 import {
   createEntry,
   deleteEntry,
+  getAuthStatus,
   getEntries,
   getRecommendations,
   getTmdbDetails,
+  login,
+  logout,
   searchTmdb,
   updateEntry,
 } from './api';
+import AuthBar from './components/AuthBar';
 import LibraryView from './components/LibraryView';
 import Poster from './components/Poster';
 import RecsView from './components/RecsView';
@@ -35,6 +39,22 @@ export default function App() {
   const [recsMeta, setRecsMeta] = useState(null);
   const [recsLoading, setRecsLoading] = useState(false);
   const [recsError, setRecsError] = useState('');
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authConfigured, setAuthConfigured] = useState(true);
+
+  async function refreshAuth() {
+    try {
+      const data = await getAuthStatus();
+      setAuthenticated(Boolean(data.authenticated));
+      setAuthConfigured(data.configured !== false);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  useEffect(() => {
+    refreshAuth();
+  }, []);
 
   async function refreshEntries({ quiet } = {}) {
     if (!quiet) {
@@ -111,6 +131,10 @@ export default function App() {
   }, [query]);
 
   async function handleAdd(result, status = addStatus) {
+    if (!authenticated) {
+      setMessage('Log in to add titles.');
+      return;
+    }
     const key = `${result.mediaType}-${result.tmdbId}`;
     setAddingId(key);
     setMessage('');
@@ -126,10 +150,13 @@ export default function App() {
         status,
       });
       setMessage(`Added “${details.title}” to ${status}.`);
-      await refreshEntries();
+      await refreshEntries({ quiet: true });
     } catch (err) {
       if (err.status === 409) {
         setMessage(`“${result.title}” is already in your library.`);
+      } else if (err.status === 401) {
+        setAuthenticated(false);
+        setMessage('Session expired — log in again.');
       } else {
         setMessage(err.message || 'Failed to add title');
       }
@@ -139,12 +166,17 @@ export default function App() {
   }
 
   async function handleStatusChange(id, status) {
+    if (!authenticated) {
+      setMessage('Log in to change status.');
+      return;
+    }
     setBusyId(id);
     setMessage('');
     try {
       await updateEntry(id, { status });
-      await refreshEntries();
+      await refreshEntries({ quiet: true });
     } catch (err) {
+      if (err.status === 401) setAuthenticated(false);
       setMessage(err.message || 'Failed to update entry');
     } finally {
       setBusyId(null);
@@ -152,12 +184,17 @@ export default function App() {
   }
 
   async function handleProgressChange(id, progress) {
+    if (!authenticated) {
+      setMessage('Log in to update progress.');
+      return;
+    }
     setBusyId(id);
     setMessage('');
     try {
       await updateEntry(id, progress);
-      await refreshEntries();
+      await refreshEntries({ quiet: true });
     } catch (err) {
+      if (err.status === 401) setAuthenticated(false);
       setMessage(err.message || 'Failed to update progress');
     } finally {
       setBusyId(null);
@@ -165,12 +202,17 @@ export default function App() {
   }
 
   async function handleRatingChange(id, rating) {
+    if (!authenticated) {
+      setMessage('Log in to rate titles.');
+      return;
+    }
     setBusyId(id);
     setMessage('');
     try {
       await updateEntry(id, { rating });
-      await refreshEntries();
+      await refreshEntries({ quiet: true });
     } catch (err) {
+      if (err.status === 401) setAuthenticated(false);
       setMessage(err.message || 'Failed to update rating');
     } finally {
       setBusyId(null);
@@ -178,12 +220,17 @@ export default function App() {
   }
 
   async function handleDelete(id) {
+    if (!authenticated) {
+      setMessage('Log in to remove titles.');
+      return;
+    }
     setBusyId(id);
     setMessage('');
     try {
       await deleteEntry(id);
-      await refreshEntries();
+      await refreshEntries({ quiet: true });
     } catch (err) {
+      if (err.status === 401) setAuthenticated(false);
       setMessage(err.message || 'Failed to remove entry');
     } finally {
       setBusyId(null);
@@ -191,6 +238,10 @@ export default function App() {
   }
 
   async function handleAskRecs(askQuery, source = 'auto') {
+    if (!authenticated) {
+      setRecsError('Log in to get recommendations.');
+      return;
+    }
     setRecsLoading(true);
     setRecsError('');
     setMessage('');
@@ -201,6 +252,7 @@ export default function App() {
     } catch (err) {
       setRecs([]);
       setRecsMeta(null);
+      if (err.status === 401) setAuthenticated(false);
       setRecsError(err.message || 'Recommendation request failed');
     } finally {
       setRecsLoading(false);
@@ -209,17 +261,38 @@ export default function App() {
 
   async function handleStartWatchingFromRec(rec) {
     if (!rec.entryId) return;
+    if (!authenticated) {
+      setMessage('Log in to update titles.');
+      return;
+    }
     setBusyId(rec.entryId);
     setMessage('');
     try {
       await updateEntry(rec.entryId, { status: 'watching' });
       setMessage(`Moved “${rec.title}” to watching.`);
-      await refreshEntries();
+      await refreshEntries({ quiet: true });
     } catch (err) {
+      if (err.status === 401) setAuthenticated(false);
       setMessage(err.message || 'Failed to update entry');
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function handleLogin(password) {
+    await login(password);
+    setAuthenticated(true);
+    setMessage('Logged in — you can edit your library.');
+  }
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } catch (err) {
+      console.error(err);
+    }
+    setAuthenticated(false);
+    setMessage('Logged out. Browsing stays public; edits require login.');
   }
 
   const subtitle =
@@ -240,24 +313,37 @@ export default function App() {
             </h1>
           </div>
 
-          <nav className="flex rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-1">
-            {VIEWS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setView(item.id)}
-                className={`rounded-md px-4 py-2 text-sm transition ${
-                  view === item.id
-                    ? 'bg-[var(--accent)] text-[#1a1208]'
-                    : 'text-[var(--muted)] hover:text-[var(--text)]'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
+          <div className="flex flex-col items-stretch gap-3 sm:items-end">
+            <AuthBar
+              authenticated={authenticated}
+              configured={authConfigured}
+              onLogin={handleLogin}
+              onLogout={handleLogout}
+            />
+            <nav className="flex rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-1">
+              {VIEWS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setView(item.id)}
+                  className={`rounded-md px-4 py-2 text-sm transition ${
+                    view === item.id
+                      ? 'bg-[var(--accent)] text-[#1a1208]'
+                      : 'text-[var(--muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </div>
         </div>
         <p className="mt-3 max-w-xl text-[var(--muted)]">{subtitle}</p>
+        {!authenticated && authConfigured && (
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            Browsing is public. Log in to add, edit, rate, or ask for recs.
+          </p>
+        )}
       </header>
 
       {message && (
@@ -346,11 +432,11 @@ export default function App() {
                       </div>
                       <button
                         type="button"
-                        disabled={busy}
+                        disabled={busy || !authenticated}
                         onClick={() => handleAdd(result)}
                         className="w-full rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[#1a1208] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {busy ? 'Adding…' : `Add to ${addStatus}`}
+                        {!authenticated ? 'Log in to add' : busy ? 'Adding…' : `Add to ${addStatus}`}
                       </button>
                     </div>
                   </li>
@@ -374,6 +460,7 @@ export default function App() {
       {view === 'library' && (
         <LibraryView
           entries={entries}
+          canEdit={authenticated}
           onStatusChange={handleStatusChange}
           onProgressChange={handleProgressChange}
           onRatingChange={handleRatingChange}
@@ -384,6 +471,7 @@ export default function App() {
 
       {view === 'recs' && (
         <RecsView
+          canEdit={authenticated}
           onAsk={handleAskRecs}
           onAdd={(rec) => handleAdd(rec, 'watchlist')}
           onStartWatching={handleStartWatchingFromRec}

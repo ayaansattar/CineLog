@@ -1,5 +1,6 @@
 async function request(path, options = {}) {
   const res = await fetch(path, {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
@@ -17,6 +18,24 @@ async function request(path, options = {}) {
     throw error;
   }
   return data;
+}
+
+export function getAuthStatus() {
+  return request('/api/auth/me');
+}
+
+export function login(password) {
+  return request('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  });
+}
+
+export function logout() {
+  return request('/api/auth/logout', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
 }
 
 export function searchTmdb(query) {

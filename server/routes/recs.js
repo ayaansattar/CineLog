@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { GoogleGenAI, Type } from '@google/genai';
 import prisma from '../db.js';
+import { requireAuth } from '../auth.js';
 import { buildCandidatePool, buildWatchlistPool } from '../candidates.js';
 
 const router = Router();
@@ -171,7 +172,7 @@ function resolveCandidate(pick, byId, byTitle) {
  * POST /api/recs
  * Body: { query: string, source?: 'auto' | 'discover' | 'watchlist', mediaType?: 'auto' | 'movie' | 'tv' | 'any' }
  */
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const query = String(req.body?.query || '').trim();
     if (!query) {

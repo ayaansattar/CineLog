@@ -26,6 +26,7 @@ Edit `.env` and set:
 - `DATABASE_URL` — Neon Postgres URL
 - `TMDB_API_KEY` — from [TMDB settings](https://www.themoviedb.org/settings/api)
 - `GEMINI_API_KEY` — from [Google AI Studio](https://aistudio.google.com/apikey) (Recs tab)
+- `AUTH_PASSWORD` — password required to add/edit/rate/recs (browsing stays public)
 
 4. **Create tables**
 
@@ -83,6 +84,7 @@ One Node service: Express serves the Vite `dist/` build and `/api`. Data lives i
 | `DATABASE_URL` | your Neon URL (`?sslmode=require`) |
 | `TMDB_API_KEY` | your TMDB key |
 | `GEMINI_API_KEY` | your Google AI Studio key |
+| `AUTH_PASSWORD` | password for edits (browsing stays public) |
 
 4. Deploy → open `*.onrender.com` → check `/api/health`.
 5. Add that URL on your [TMDB API](https://www.themoviedb.org/settings/api) app if they ask for a website URL.

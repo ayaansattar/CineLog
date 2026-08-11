@@ -51,6 +51,7 @@ function sortEntries(entries, sortBy) {
 
 export default function LibraryView({
   entries,
+  canEdit = false,
   onStatusChange,
   onProgressChange,
   onRatingChange,
@@ -187,7 +188,8 @@ export default function LibraryView({
             const busy = busyId === entry.id;
             const progressLabel =
               entry.status === 'watching' ? formatProgressLabel(entry) : null;
-            const showProgressEditor = entry.status === 'watching';
+            const showProgressEditor = canEdit && entry.status === 'watching';
+            const editDisabled = busy || !canEdit;
 
             return (
               <li
@@ -211,7 +213,7 @@ export default function LibraryView({
                     <div className="mt-2">
                       <StarRating
                         value={entry.rating}
-                        disabled={busy}
+                        disabled={editDisabled}
                         onChange={(rating) => onRatingChange(entry.id, rating)}
                       />
                     </div>
@@ -220,32 +222,36 @@ export default function LibraryView({
                   {showProgressEditor && (
                     <ProgressEditor
                       entry={entry}
-                      disabled={busy}
+                      disabled={editDisabled}
                       onSave={(progress) => onProgressChange(entry.id, progress)}
                     />
                   )}
 
-                  <div className="flex flex-col gap-1.5">
-                    {(STATUS_ACTIONS[entry.status] || []).map((action) => (
+                  {canEdit ? (
+                    <div className="flex flex-col gap-1.5">
+                      {(STATUS_ACTIONS[entry.status] || []).map((action) => (
+                        <button
+                          key={action.status}
+                          type="button"
+                          disabled={editDisabled}
+                          onClick={() => onStatusChange(entry.id, action.status)}
+                          className="w-full rounded-md border border-[var(--border)] px-2 py-1.5 text-xs text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-60"
+                        >
+                          {action.label}
+                        </button>
+                      ))}
                       <button
-                        key={action.status}
                         type="button"
-                        disabled={busy}
-                        onClick={() => onStatusChange(entry.id, action.status)}
-                        className="w-full rounded-md border border-[var(--border)] px-2 py-1.5 text-xs text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-60"
+                        disabled={editDisabled}
+                        onClick={() => onDelete(entry.id)}
+                        className="w-full rounded-md px-2 py-1.5 text-xs text-[var(--danger)] transition hover:bg-[var(--danger)]/10 disabled:opacity-60"
                       >
-                        {action.label}
+                        Remove
                       </button>
-                    ))}
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => onDelete(entry.id)}
-                      className="w-full rounded-md px-2 py-1.5 text-xs text-[var(--danger)] transition hover:bg-[var(--danger)]/10 disabled:opacity-60"
-                    >
-                      Remove
-                    </button>
-                  </div>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-[var(--muted)]">Log in to edit</p>
+                  )}
                 </div>
               </li>
             );
