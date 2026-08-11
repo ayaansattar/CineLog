@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import entriesRouter from './routes/entries.js';
 import tmdbRouter from './routes/tmdb.js';
+import recsRouter from './routes/recs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
@@ -22,6 +23,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/entries', entriesRouter);
 app.use('/api/tmdb', tmdbRouter);
+app.use('/api/recs', recsRouter);
 
 if (isProd) {
   const distDir = path.join(rootDir, 'dist');

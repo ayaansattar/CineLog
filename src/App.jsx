@@ -3,16 +3,19 @@ import {
   createEntry,
   deleteEntry,
   getEntries,
+  getRecommendations,
   getTmdbDetails,
   searchTmdb,
   updateEntry,
 } from './api';
 import LibraryView from './components/LibraryView';
 import Poster from './components/Poster';
+import RecsView from './components/RecsView';
 
 const VIEWS = [
   { id: 'search', label: 'Search' },
   { id: 'library', label: 'Library' },
+  { id: 'recs', label: 'Recs' },
 ];
 
 export default function App() {
@@ -26,6 +29,10 @@ export default function App() {
   const [busyId, setBusyId] = useState(null);
   const [message, setMessage] = useState('');
   const [entries, setEntries] = useState([]);
+  const [recs, setRecs] = useState([]);
+  const [recsMeta, setRecsMeta] = useState(null);
+  const [recsLoading, setRecsLoading] = useState(false);
+  const [recsError, setRecsError] = useState('');
 
   async function refreshEntries() {
     try {
@@ -66,7 +73,7 @@ export default function App() {
     return () => clearTimeout(handle);
   }, [query]);
 
-  async function handleAdd(result) {
+  async function handleAdd(result, status = addStatus) {
     const key = `${result.mediaType}-${result.tmdbId}`;
     setAddingId(key);
     setMessage('');
@@ -79,9 +86,9 @@ export default function App() {
         mediaType: details.mediaType,
         posterPath: details.posterPath,
         genres: details.genres,
-        status: addStatus,
+        status,
       });
-      setMessage(`Added “${details.title}” to ${addStatus}.`);
+      setMessage(`Added “${details.title}” to ${status}.`);
       await refreshEntries();
     } catch (err) {
       if (err.status === 409) {
@@ -146,6 +153,30 @@ export default function App() {
     }
   }
 
+  async function handleAskRecs(askQuery) {
+    setRecsLoading(true);
+    setRecsError('');
+    setMessage('');
+    try {
+      const data = await getRecommendations(askQuery);
+      setRecs(data.recommendations || []);
+      setRecsMeta(data.meta || null);
+    } catch (err) {
+      setRecs([]);
+      setRecsMeta(null);
+      setRecsError(err.message || 'Recommendation request failed');
+    } finally {
+      setRecsLoading(false);
+    }
+  }
+
+  const subtitle =
+    view === 'search'
+      ? 'Search TMDB and add movies or shows to your library.'
+      : view === 'library'
+        ? 'Browse watchlist, currently watching, and watched titles.'
+        : 'Ask for suggestions grounded in TMDB — Claude only picks from a live candidate pool.';
+
   return (
     <div className="mx-auto min-h-screen max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-8">
@@ -174,11 +205,7 @@ export default function App() {
             ))}
           </nav>
         </div>
-        <p className="mt-3 max-w-xl text-[var(--muted)]">
-          {view === 'search'
-            ? 'Search TMDB and add movies or shows to your library.'
-            : 'Browse watchlist, currently watching, and watched titles.'}
-        </p>
+        <p className="mt-3 max-w-xl text-[var(--muted)]">{subtitle}</p>
       </header>
 
       {message && (
@@ -187,7 +214,7 @@ export default function App() {
         </p>
       )}
 
-      {view === 'search' ? (
+      {view === 'search' && (
         <section>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <label className="block flex-1">
@@ -270,7 +297,9 @@ export default function App() {
             </p>
           )}
         </section>
-      ) : (
+      )}
+
+      {view === 'library' && (
         <LibraryView
           entries={entries}
           onStatusChange={handleStatusChange}
@@ -278,6 +307,18 @@ export default function App() {
           onRatingChange={handleRatingChange}
           onDelete={handleDelete}
           busyId={busyId}
+        />
+      )}
+
+      {view === 'recs' && (
+        <RecsView
+          onAsk={handleAskRecs}
+          onAdd={(rec) => handleAdd(rec, 'watchlist')}
+          recommendations={recs}
+          meta={recsMeta}
+          loading={recsLoading}
+          error={recsError}
+          addingId={addingId}
         />
       )}
     </div>

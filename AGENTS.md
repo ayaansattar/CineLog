@@ -34,7 +34,7 @@ Do **not** commit unless the user asks.
 - React (Vite) + Tailwind frontend
 - Express API; serves `dist/` in production
 - Prisma + SQLite
-- TMDB (proxied server-side); Anthropic planned for recs
+- TMDB (proxied server-side); Anthropic for recs (`POST /api/recs`)
 
 ## Milestones
 
@@ -46,8 +46,8 @@ Do **not** commit unless the user asks.
 | 4 | In-progress tracking (watching status, TV S/E, movie progress mark) | done |
 | 5 | Ratings UI | done |
 | 6 | Letterboxd CSV import (CLI one-time migration) | done |
-| 7 | Plain-text import | pending |
-| 8 | AI recommendation chat (candidate pool → Claude → cards) | pending |
+| 7 | Plain-text import | skipped |
+| 8 | AI recommendation chat (candidate pool → Claude → cards) | done |
 | 9 | Production build + deploy (Railway + persistent SQLite volume) | in_progress |
 
 ### Done notes
@@ -57,12 +57,13 @@ Do **not** commit unless the user asks.
 - **4**: `currentSeason` / `currentEpisode` / `progressMark` / `progressUpdatedAt`; Watching card overlay + editor + Next ep.
 - **5**: Half-star ratings (left half = .5, right = full; click again clears); rating → status `watched`.
 - **6**: CLI Letterboxd import (`npm run import:letterboxd`). Also ran one-time PDF list import (`Movies.pdf` / `TV shows.pdf` → watchlist, Watching section → watching).
+- **7**: Skipped — Google Docs lists already imported via PDF/Letterboxd paths.
+- **8**: Recs tab; `POST /api/recs` builds TMDB candidate pool (similar/recs from top-rated + trending), Claude tool-use picks ≤6 with reasons/tags; add to watchlist. Needs `ANTHROPIC_API_KEY`.
 
 ### Next session
 
-1. **Milestone 7** — plain-text list import (paste `Title` / `Title (Year)`, TMDB match + dedupe). Prefer CLI or a minimal UI (user previously removed CSV upload UI in favor of file-in-repo + script).
-2. **Milestone 8** — AI recommendation chat (highest design care: candidate pool only, no free invent).
-3. **Milestone 9** — finish Railway deploy + volume (prep already in repo; public placeholder is GitHub Pages).
+1. **Milestone 9** — finish Railway deploy + volume (prep already in repo; public placeholder is GitHub Pages). Set `ANTHROPIC_API_KEY` + `TMDB_API_KEY` on Railway.
+2. Optional polish: chat history, richer taste grouping, cache candidate pools.
 
 ## Layout
 
@@ -87,7 +88,7 @@ docs/                GitHub Pages landing (TMDB app URL)
 
 ## Working notes
 
-- Env: copy `.env.example` → `.env`. `TMDB_API_KEY` required for search/match; never expose to client.
+- Env: copy `.env.example` → `.env`. `TMDB_API_KEY` required for search/match; `ANTHROPIC_API_KEY` required for Recs; never expose either to the client.
 - SQLite: `DATABASE_URL=file:./dev.db` (Prisma resolves relative to `prisma/`).
 - Railway: `railway.json` ready. Mount volume at `/app/data`, set `DATABASE_URL=file:/app/data/cinelog.db`, `NODE_ENV=production`.
 - Public placeholder for TMDB: https://ayaansattar.github.io/CineLog/

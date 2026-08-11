@@ -52,6 +52,13 @@ export function deleteEntry(id) {
   });
 }
 
+export function getRecommendations(query) {
+  return request('/api/recs', {
+    method: 'POST',
+    body: JSON.stringify({ query }),
+  });
+}
+
 export function posterUrl(posterPath, size = 'w342') {
   if (!posterPath) return null;
   return `https://image.tmdb.org/t/p/${size}${posterPath}`;
