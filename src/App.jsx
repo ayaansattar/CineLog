@@ -15,6 +15,7 @@ import {
   updateEntry,
   updateSection,
   reorderSections,
+  reorderEntries,
 } from './api';
 import AuthBar from './components/AuthBar';
 import FloatingBar from './components/FloatingBar';
@@ -291,16 +292,25 @@ export default function App() {
       setMessage('Log in to move titles.');
       return;
     }
-    setBusyId(id);
     setMessage('');
+    const snapshot = entries;
+    const maxOrder = Math.max(
+      -1,
+      ...entries
+        .filter((e) => (e.sectionId || null) === (sectionId || null) && e.id !== id)
+        .map((e) => e.sectionOrder ?? 0),
+    );
+    setEntries((prev) =>
+      prev.map((entry) =>
+        entry.id === id ? { ...entry, sectionId, sectionOrder: maxOrder + 1 } : entry,
+      ),
+    );
     try {
       await updateEntry(id, { sectionId });
-      await refreshEntries({ quiet: true });
     } catch (err) {
+      setEntries(snapshot);
       if (err.status === 401) setAuthenticated(false);
       setMessage(err.message || 'Failed to update heading');
-    } finally {
-      setBusyId(null);
     }
   }
 
@@ -310,8 +320,8 @@ export default function App() {
       throw new Error('Login required');
     }
     try {
-      await createSection(name);
-      await refreshEntries({ quiet: true });
+      const created = await createSection(name);
+      setSections((prev) => [...prev, created].sort((a, b) => a.sortOrder - b.sortOrder));
       setMessage(`Added heading “${name}”.`);
     } catch (err) {
       if (err.status === 401) setAuthenticated(false);
@@ -325,10 +335,13 @@ export default function App() {
       setMessage('Log in to rename headings.');
       return;
     }
+    const snapshot = sections;
+    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)));
     try {
-      await updateSection(id, { name });
-      await refreshEntries({ quiet: true });
+      const updated = await updateSection(id, { name });
+      setSections((prev) => prev.map((s) => (s.id === id ? updated : s)));
     } catch (err) {
+      setSections(snapshot);
       if (err.status === 401) setAuthenticated(false);
       setMessage(err.message || 'Failed to rename heading');
     }
@@ -339,11 +352,18 @@ export default function App() {
       setMessage('Log in to delete headings.');
       return;
     }
+    const snapshotEntries = entries;
+    const snapshotSections = sections;
+    setSections((prev) => prev.filter((s) => s.id !== id));
+    setEntries((prev) =>
+      prev.map((e) => (e.sectionId === id ? { ...e, sectionId: null } : e)),
+    );
     try {
       await deleteSection(id);
-      await refreshEntries({ quiet: true });
       setMessage('Heading deleted. Titles moved to Unsorted.');
     } catch (err) {
+      setEntries(snapshotEntries);
+      setSections(snapshotSections);
       if (err.status === 401) setAuthenticated(false);
       setMessage(err.message || 'Failed to delete heading');
     }
@@ -354,13 +374,48 @@ export default function App() {
       setMessage('Log in to reorder headings.');
       return;
     }
+    const snapshot = sections;
+    const byId = new Map(sections.map((s) => [s.id, s]));
+    setSections(
+      ids.map((id, sortOrder) => ({
+        ...byId.get(id),
+        id,
+        sortOrder,
+      })).filter((s) => s.name != null),
+    );
     try {
       const next = await reorderSections(ids);
       setSections(Array.isArray(next) ? next : []);
     } catch (err) {
+      setSections(snapshot);
       if (err.status === 401) setAuthenticated(false);
       setMessage(err.message || 'Failed to reorder headings');
-      await refreshEntries({ quiet: true });
+    }
+  }
+
+  async function handleReorderEntries(sectionId, ids) {
+    if (!authenticated) {
+      setMessage('Log in to reorder titles.');
+      return;
+    }
+    const snapshot = entries;
+    const order = new Map(ids.map((id, index) => [id, index]));
+    setEntries((prev) =>
+      prev.map((entry) => {
+        if (!order.has(entry.id)) return entry;
+        return {
+          ...entry,
+          sectionId,
+          sectionOrder: order.get(entry.id),
+        };
+      }),
+    );
+    try {
+      await reorderEntries(sectionId, ids);
+    } catch (err) {
+      setEntries(snapshot);
+      if (err.status === 401) setAuthenticated(false);
+      setMessage(err.message || 'Failed to reorder titles');
     }
   }
 
@@ -633,6 +688,7 @@ export default function App() {
           onRenameSection={handleRenameSection}
           onDeleteSection={handleDeleteSection}
           onReorderSections={handleReorderSections}
+          onReorderEntries={handleReorderEntries}
           busyId={busyId}
         />
       </div>

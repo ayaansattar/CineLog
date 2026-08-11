@@ -65,6 +65,13 @@ export function updateEntry(id, payload) {
   });
 }
 
+export function reorderEntries(sectionId, ids) {
+  return request('/api/entries/reorder', {
+    method: 'PUT',
+    body: JSON.stringify({ sectionId, ids }),
+  });
+}
+
 export function deleteEntry(id) {
   return request(`/api/entries/${id}`, {
     method: 'DELETE',

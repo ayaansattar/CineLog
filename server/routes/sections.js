@@ -56,14 +56,14 @@ router.put('/reorder', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'ids must include every section exactly once' });
     }
 
-    await prisma.$transaction(
-      ids.map((id, index) =>
-        prisma.section.update({
-          where: { id: String(id) },
+    await prisma.$transaction(async (tx) => {
+      for (let index = 0; index < ids.length; index++) {
+        await tx.section.update({
+          where: { id: String(ids[index]) },
           data: { sortOrder: index },
-        }),
-      ),
-    );
+        });
+      }
+    });
 
     const sections = await prisma.section.findMany({
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],

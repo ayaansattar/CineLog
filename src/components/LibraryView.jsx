@@ -1,4 +1,14 @@
 import { useMemo, useState } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
 import Poster from './Poster';
 import ProgressEditor, { formatProgressLabel } from './ProgressEditor';
 import StarRating from './StarRating';
@@ -29,9 +39,6 @@ const STATUS_ACTIONS = {
   ],
 };
 
-const ENTRY_MIME = 'application/x-cinelog-entry';
-const SECTION_MIME = 'application/x-cinelog-section';
-
 function sortEntries(entries, sortBy) {
   const list = [...entries];
   switch (sortBy) {
@@ -57,37 +64,106 @@ function sortEntries(entries, sortBy) {
   }
 }
 
-function hasMime(types, mime) {
-  return Array.from(types || []).includes(mime);
+function sortBySectionOrder(entries, sortBy) {
+  const secondary = sortEntries(entries, sortBy);
+  return secondary.sort((a, b) => {
+    const ao = a.sectionOrder ?? 0;
+    const bo = b.sectionOrder ?? 0;
+    if (ao !== bo) return ao - bo;
+    return 0;
+  });
+}
+
+function entryDragId(id) {
+  return `entry:${id}`;
+}
+
+function parseEntryDragId(id) {
+  const raw = String(id || '');
+  return raw.startsWith('entry:') ? raw.slice(6) : null;
+}
+
+function headingDragId(id) {
+  return `heading:${id}`;
+}
+
+function parseHeadingDragId(id) {
+  const raw = String(id || '');
+  return raw.startsWith('heading:') ? raw.slice(8) : null;
+}
+
+function containerDropId(sectionId) {
+  return sectionId ? `drop-section:${sectionId}` : 'drop-section:unsorted';
+}
+
+function parseContainerDropId(id) {
+  const raw = String(id || '');
+  if (!raw.startsWith('drop-section:')) return undefined;
+  const key = raw.slice('drop-section:'.length);
+  return key === 'unsorted' ? null : key;
+}
+
+function beforeDropId(entryId) {
+  return `drop-before:${entryId}`;
+}
+
+function parseBeforeDropId(id) {
+  const raw = String(id || '');
+  return raw.startsWith('drop-before:') ? raw.slice('drop-before:'.length) : null;
+}
+
+function stopDragInterference(e) {
+  e.stopPropagation();
 }
 
 function EntryCard({
   entry,
+  sectionId,
   sections,
   canEdit,
   busy,
-  dragging,
   onStatusChange,
   onProgressChange,
   onRatingChange,
   onDelete,
   onSectionChange,
-  onDragStart,
-  onDragEnd,
 }) {
   const progressLabel = entry.status === 'watching' ? formatProgressLabel(entry) : null;
   const showProgressEditor = canEdit && entry.status === 'watching';
   const editDisabled = busy || !canEdit;
 
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: entryDragId(entry.id),
+    disabled: !canEdit || busy,
+    data: { type: 'entry', entryId: entry.id, sectionId },
+  });
+
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: beforeDropId(entry.id),
+    disabled: !canEdit,
+    data: { type: 'before', entryId: entry.id, sectionId },
+  });
+
   return (
     <li
-      draggable={canEdit && !busy}
-      onDragStart={(e) => onDragStart(e, entry.id)}
-      onDragEnd={onDragEnd}
-      className={`flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] ${
-        canEdit ? 'cursor-grab active:cursor-grabbing' : ''
-      } ${dragging ? 'opacity-40' : ''}`}
+      ref={setDropRef}
+      className={`relative flex flex-col overflow-hidden rounded-xl border bg-[var(--bg-elevated)] ${
+        isDragging ? 'opacity-30' : ''
+      } ${isOver ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]' : 'border-[var(--border)]'}`}
     >
+      {canEdit && !busy && (
+        <button
+          ref={setDragRef}
+          type="button"
+          className="absolute top-2 right-2 z-10 cursor-grab rounded-md border border-[var(--border)] bg-black/75 px-2 py-1 text-[11px] leading-none text-[var(--text)] active:cursor-grabbing"
+          aria-label={`Drag ${entry.title}`}
+          {...listeners}
+          {...attributes}
+        >
+          ⋮⋮
+        </button>
+      )}
+
       <div className="relative">
         <Poster path={entry.posterPath} title={entry.title} className="aspect-[2/3] w-full" />
         {progressLabel && (
@@ -96,13 +172,14 @@ function EntryCard({
           </span>
         )}
       </div>
+
       <div className="flex flex-1 flex-col gap-2 p-3">
         <div className="flex-1">
           <h3 className="line-clamp-2 text-sm font-medium leading-snug">{entry.title}</h3>
           <p className="mt-1 text-xs text-[var(--muted)]">
             {entry.year ?? '—'} · {entry.mediaType === 'tv' ? 'TV' : 'Movie'}
           </p>
-          <div className="mt-2">
+          <div className="mt-2" onPointerDown={stopDragInterference}>
             <StarRating
               value={entry.rating}
               disabled={editDisabled}
@@ -112,22 +189,26 @@ function EntryCard({
         </div>
 
         {showProgressEditor && (
-          <ProgressEditor
-            entry={entry}
-            disabled={editDisabled}
-            onSave={(progress) => onProgressChange(entry.id, progress)}
-          />
+          <div onPointerDown={stopDragInterference}>
+            <ProgressEditor
+              entry={entry}
+              disabled={editDisabled}
+              onSave={(progress) => onProgressChange(entry.id, progress)}
+            />
+          </div>
         )}
 
         {canEdit ? (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5" onPointerDown={stopDragInterference}>
             <label className="block">
-              <span className="sr-only">Heading</span>
+              <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                Heading
+              </span>
               <select
                 value={entry.sectionId || ''}
                 disabled={editDisabled}
                 onChange={(e) => onSectionChange(entry.id, e.target.value || null)}
-                className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)] disabled:opacity-60"
+                className="relative z-20 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)] disabled:opacity-60"
               >
                 <option value="">No heading</option>
                 {sections.map((section) => (
@@ -165,6 +246,148 @@ function EntryCard({
   );
 }
 
+function SectionBlock({
+  sectionId,
+  title,
+  section,
+  entries,
+  sections,
+  canEdit,
+  editing,
+  editingName,
+  setEditingName,
+  onStartEdit,
+  onSaveEdit,
+  onCancelEdit,
+  onDeleteHeading,
+  busyId,
+  onStatusChange,
+  onProgressChange,
+  onRatingChange,
+  onDelete,
+  onSectionChange,
+}) {
+  const { attributes, listeners, setNodeRef: setHeadingDragRef, isDragging } = useDraggable({
+    id: section ? headingDragId(section.id) : 'heading:noop',
+    disabled: !canEdit || !section,
+    data: { type: 'heading', sectionId: section?.id ?? null },
+  });
+
+  const { setNodeRef: setSectionDropRef, isOver: isOverSection } = useDroppable({
+    id: containerDropId(sectionId),
+    disabled: !canEdit,
+    data: { type: 'section', sectionId },
+  });
+
+  return (
+    <div
+      ref={setSectionDropRef}
+      className={`rounded-xl transition ${
+        isOverSection ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]' : ''
+      }`}
+    >
+      {title != null && (
+        <div
+          className={`mb-4 flex flex-wrap items-center gap-2 border-b border-[var(--border)] pb-2 ${
+            isDragging ? 'opacity-40' : ''
+          }`}
+        >
+          {editing && section ? (
+            <form
+              className="flex flex-1 flex-wrap items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onSaveEdit();
+              }}
+              onPointerDown={stopDragInterference}
+            >
+              <input
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                autoFocus
+                className="min-w-[10rem] flex-1 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-1.5 font-['Instrument_Serif'] text-2xl text-[var(--text)] outline-none focus:border-[var(--accent)]"
+              />
+              <button type="submit" className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[#1a1208]">
+                Save
+              </button>
+              <button type="button" onClick={onCancelEdit} className="text-xs text-[var(--muted)] hover:text-[var(--text)]">
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <>
+              {canEdit && section && (
+                <button
+                  ref={setHeadingDragRef}
+                  type="button"
+                  className="cursor-grab rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] active:cursor-grabbing"
+                  aria-label={`Drag heading ${section.name}`}
+                  {...listeners}
+                  {...attributes}
+                >
+                  ⋮⋮
+                </button>
+              )}
+              <h3 className="font-['Instrument_Serif'] text-2xl tracking-tight text-[var(--text)] sm:text-3xl">
+                {title}
+              </h3>
+              <span className="text-sm tabular-nums text-[var(--muted)]">{entries.length}</span>
+              {canEdit && section && (
+                <div className="ml-auto flex items-center gap-2" onPointerDown={stopDragInterference}>
+                  <button
+                    type="button"
+                    onClick={onStartEdit}
+                    className="text-xs text-[var(--muted)] transition hover:text-[var(--text)]"
+                  >
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onDeleteHeading}
+                    className="text-xs text-[var(--danger)] transition hover:underline"
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {entries.length === 0 ? (
+        <p
+          className={`rounded-lg border border-dashed px-4 py-8 text-center text-sm ${
+            isOverSection
+              ? 'border-[var(--accent)] text-[var(--accent)]'
+              : 'border-[var(--border)] text-[var(--muted)]'
+          }`}
+        >
+          Drop titles here
+        </p>
+      ) : (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {entries.map((entry) => (
+            <EntryCard
+              key={entry.id}
+              entry={entry}
+              sectionId={sectionId}
+              sections={sections}
+              canEdit={canEdit}
+              busy={busyId === entry.id}
+              onStatusChange={onStatusChange}
+              onProgressChange={onProgressChange}
+              onRatingChange={onRatingChange}
+              onDelete={onDelete}
+              onSectionChange={onSectionChange}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function LibraryView({
   entries,
   sections = [],
@@ -178,6 +401,7 @@ export default function LibraryView({
   onRenameSection,
   onDeleteSection,
   onReorderSections,
+  onReorderEntries,
   busyId,
 }) {
   const [tab, setTab] = useState('watchlist');
@@ -189,9 +413,13 @@ export default function LibraryView({
   const [addingHeading, setAddingHeading] = useState(false);
   const [editingSectionId, setEditingSectionId] = useState(null);
   const [editingName, setEditingName] = useState('');
-  const [dragKind, setDragKind] = useState(null);
-  const [dragId, setDragId] = useState(null);
-  const [dropTarget, setDropTarget] = useState(null);
+  const [active, setActive] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 10 },
+    }),
+  );
 
   const counts = useMemo(() => {
     return STATUS_TABS.reduce((acc, t) => {
@@ -218,6 +446,8 @@ export default function LibraryView({
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [entries, tab, mediaType]);
 
+  const effectiveSort = tab === 'watching' && sortBy === 'addedAt' ? 'progressUpdatedAt' : sortBy;
+
   const filtered = useMemo(() => {
     let list = entries.filter((e) => e.status === tab && e.mediaType === mediaType);
     if (genre !== 'all') {
@@ -228,13 +458,12 @@ export default function LibraryView({
       list = list.filter((e) => {
         const title = String(e.title || '').toLowerCase();
         const year = e.year != null ? String(e.year) : '';
-        const genres = Array.isArray(e.genres) ? e.genres.join(' ').toLowerCase() : '';
-        return title.includes(q) || year.includes(q) || genres.includes(q);
+        const genreText = Array.isArray(e.genres) ? e.genres.join(' ').toLowerCase() : '';
+        return title.includes(q) || year.includes(q) || genreText.includes(q);
       });
     }
-    const effectiveSort = tab === 'watching' && sortBy === 'addedAt' ? 'progressUpdatedAt' : sortBy;
-    return sortEntries(list, effectiveSort);
-  }, [entries, tab, mediaType, genre, sortBy, libraryQuery]);
+    return sortBySectionOrder(list, effectiveSort);
+  }, [entries, tab, mediaType, genre, libraryQuery, effectiveSort]);
 
   const groups = useMemo(() => {
     const byId = new Map(sections.map((s) => [s.id, []]));
@@ -254,99 +483,100 @@ export default function LibraryView({
         key: section.id,
         section,
         title: section.name,
-        entries: byId.get(section.id) || [],
+        sectionId: section.id,
+        entries: sortBySectionOrder(byId.get(section.id) || [], effectiveSort),
       }))
       .filter((group) => group.entries.length > 0 || (canEdit && !searching));
 
-    const showUnsorted =
-      unsorted.length > 0 || (canEdit && sections.length > 0 && !searching);
-    if (showUnsorted) {
+    if (unsorted.length > 0 || (canEdit && sections.length > 0 && !searching)) {
       ordered.push({
         key: 'unsorted',
         section: null,
         title: sections.length ? 'Unsorted' : null,
-        entries: unsorted,
+        sectionId: null,
+        entries: sortBySectionOrder(unsorted, effectiveSort),
       });
     }
 
     return ordered;
-  }, [filtered, sections, canEdit, libraryQuery]);
+  }, [filtered, sections, canEdit, libraryQuery, effectiveSort]);
 
-  function clearDrag() {
-    setDragKind(null);
-    setDragId(null);
-    setDropTarget(null);
-  }
+  async function reorderEntry(movingId, targetSectionId, beforeEntryId = null) {
+    const allInSection = entries
+      .filter((e) => (e.sectionId || null) === targetSectionId && e.id !== movingId)
+      .sort(
+        (a, b) =>
+          (a.sectionOrder ?? 0) - (b.sectionOrder ?? 0) || a.title.localeCompare(b.title),
+      )
+      .map((e) => e.id);
 
-  function handleEntryDragStart(e, entryId) {
-    e.dataTransfer.setData(ENTRY_MIME, entryId);
-    e.dataTransfer.setData('text/plain', `entry:${entryId}`);
-    e.dataTransfer.effectAllowed = 'move';
-    setDragKind('entry');
-    setDragId(entryId);
-  }
-
-  function handleSectionDragStart(e, sectionId) {
-    e.dataTransfer.setData(SECTION_MIME, sectionId);
-    e.dataTransfer.setData('text/plain', `section:${sectionId}`);
-    e.dataTransfer.effectAllowed = 'move';
-    setDragKind('section');
-    setDragId(sectionId);
-  }
-
-  function allowEntryDrop(e) {
-    if (dragKind === 'entry' || hasMime(e.dataTransfer.types, ENTRY_MIME)) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      return true;
+    let next;
+    if (beforeEntryId && allInSection.includes(beforeEntryId)) {
+      next = [...allInSection];
+      next.splice(next.indexOf(beforeEntryId), 0, movingId);
+    } else {
+      next = [...allInSection, movingId];
     }
-    return false;
+
+    await onReorderEntries(targetSectionId, next);
   }
 
-  function allowSectionDrop(e) {
-    if (dragKind === 'section' || hasMime(e.dataTransfer.types, SECTION_MIME)) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      return true;
-    }
-    return false;
-  }
+  async function handleDragEnd(event) {
+    const { active: drag, over } = event;
+    setActive(null);
+    if (!over || !canEdit) return;
 
-  async function dropEntryOn(targetKey, entryId = dragId) {
-    if (!entryId) return;
-    const sectionId = targetKey === 'unsorted' ? null : targetKey;
-    const entry = entries.find((item) => item.id === entryId);
-    if (!entry) {
-      clearDrag();
+    const dragType = drag.data.current?.type;
+
+    if (dragType === 'heading') {
+      const movingSectionId = drag.data.current.sectionId;
+      const overSectionId =
+        over.data.current?.type === 'heading' || over.data.current?.type === 'section'
+          ? over.data.current.sectionId
+          : parseHeadingDragId(over.id) || parseContainerDropId(over.id);
+
+      if (!movingSectionId || typeof overSectionId !== 'string') return;
+      if (movingSectionId === overSectionId) return;
+
+      const ids = sections.map((s) => s.id);
+      const from = ids.indexOf(movingSectionId);
+      const to = ids.indexOf(overSectionId);
+      if (from < 0 || to < 0 || from === to) return;
+      const next = [...ids];
+      next.splice(from, 1);
+      next.splice(to, 0, movingSectionId);
+      await onReorderSections(next);
       return;
     }
-    const current = entry.sectionId || null;
-    if (current === sectionId) {
-      clearDrag();
-      return;
-    }
-    await onSectionChange(entryId, sectionId);
-    clearDrag();
-  }
 
-  async function dropSectionBefore(targetSectionId, movingId = dragId) {
-    if (!movingId || !targetSectionId || movingId === targetSectionId) {
-      clearDrag();
-      return;
+    if (dragType === 'entry') {
+      const movingId = drag.data.current.entryId || parseEntryDragId(drag.id);
+      if (!movingId) return;
+
+      let targetSectionId = drag.data.current.sectionId ?? null;
+      let beforeId = null;
+
+      if (over.data.current?.type === 'before') {
+        targetSectionId = over.data.current.sectionId ?? null;
+        beforeId = over.data.current.entryId;
+        if (beforeId === movingId) return;
+      } else if (over.data.current?.type === 'section' || over.data.current?.type === 'heading') {
+        targetSectionId = over.data.current.sectionId ?? null;
+      } else {
+        const fromBefore = parseBeforeDropId(over.id);
+        const fromSection = parseContainerDropId(over.id);
+        if (fromBefore) {
+          const target = entries.find((e) => e.id === fromBefore);
+          if (!target) return;
+          targetSectionId = target.sectionId || null;
+          beforeId = fromBefore;
+        } else if (fromSection !== undefined) {
+          targetSectionId = fromSection;
+        }
+      }
+
+      await reorderEntry(movingId, targetSectionId, beforeId);
     }
-    const ids = sections.map((s) => s.id);
-    const from = ids.indexOf(movingId);
-    const to = ids.indexOf(targetSectionId);
-    if (from < 0 || to < 0) {
-      clearDrag();
-      return;
-    }
-    const next = [...ids];
-    next.splice(from, 1);
-    const insertAt = next.indexOf(targetSectionId);
-    next.splice(insertAt, 0, movingId);
-    await onReorderSections(next);
-    clearDrag();
   }
 
   async function submitHeading(e) {
@@ -372,6 +602,11 @@ export default function LibraryView({
     setEditingSectionId(null);
   }
 
+  const overlayEntry =
+    active?.type === 'entry' ? entries.find((e) => e.id === active.entryId) : null;
+  const overlayHeading =
+    active?.type === 'heading' ? sections.find((s) => s.id === active.sectionId) : null;
+
   return (
     <section>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -379,7 +614,9 @@ export default function LibraryView({
           <h2 className="font-['Instrument_Serif'] text-3xl sm:text-4xl">Library</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             {entries.length} title{entries.length === 1 ? '' : 's'} saved
-            {canEdit ? ' · Drag titles onto headings; drag headings to reorder' : ''}
+            {canEdit
+              ? ' · Change heading in the dropdown, or drag with the ⋮⋮ handle'
+              : ''}
           </p>
         </div>
 
@@ -506,178 +743,71 @@ export default function LibraryView({
                 : `No ${mediaType === 'tv' ? 'TV shows' : 'movies'} on your watchlist — search TMDB to add something.`}
         </p>
       ) : (
-        <div className="space-y-10">
-          {groups.map((group) => {
-            const groupDropKey = group.section ? group.section.id : 'unsorted';
-            const entryDropActive = dragKind === 'entry' && dropTarget === groupDropKey;
-            const sectionDropActive =
-              dragKind === 'section' && group.section && dropTarget === group.section.id;
-
-            return (
-              <div
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={(event) => {
+            const type = event.active.data.current?.type;
+            if (type === 'entry') {
+              setActive({ type: 'entry', entryId: event.active.data.current.entryId });
+            } else if (type === 'heading') {
+              setActive({ type: 'heading', sectionId: event.active.data.current.sectionId });
+            }
+          }}
+          onDragCancel={() => setActive(null)}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="space-y-10">
+            {groups.map((group) => (
+              <SectionBlock
                 key={group.key}
-                onDragOver={(e) => {
-                  if (allowEntryDrop(e)) setDropTarget(groupDropKey);
+                sectionId={group.sectionId}
+                title={group.title}
+                section={group.section}
+                entries={group.entries}
+                sections={sections}
+                canEdit={canEdit}
+                editing={group.section && editingSectionId === group.section.id}
+                editingName={editingName}
+                setEditingName={setEditingName}
+                onStartEdit={() => {
+                  setEditingSectionId(group.section.id);
+                  setEditingName(group.section.name);
                 }}
-                onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget)) {
-                    setDropTarget((current) => (current === groupDropKey ? null : current));
+                onSaveEdit={() => saveRename(group.section.id)}
+                onCancelEdit={() => setEditingSectionId(null)}
+                onDeleteHeading={() => {
+                  if (
+                    window.confirm(
+                      `Delete heading “${group.section.name}”? Titles stay in your library under Unsorted.`,
+                    )
+                  ) {
+                    onDeleteSection(group.section.id);
                   }
                 }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const entryId = e.dataTransfer.getData(ENTRY_MIME) || (dragKind === 'entry' ? dragId : '');
-                  if (entryId) {
-                    dropEntryOn(groupDropKey, entryId);
-                  }
-                }}
-                className={`rounded-xl transition ${
-                  entryDropActive ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]' : ''
-                }`}
-              >
-                {group.title != null && (
-                  <div
-                    draggable={canEdit && Boolean(group.section)}
-                    onDragStart={
-                      group.section
-                        ? (e) => {
-                            // Don't start section drag from rename/delete controls
-                            if (e.target.closest('button, input, form')) {
-                              e.preventDefault();
-                              return;
-                            }
-                            handleSectionDragStart(e, group.section.id);
-                          }
-                        : undefined
-                    }
-                    onDragEnd={clearDrag}
-                    onDragOver={(e) => {
-                      if (group.section && allowSectionDrop(e)) {
-                        setDropTarget(group.section.id);
-                      } else {
-                        allowEntryDrop(e);
-                      }
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const sectionId =
-                        e.dataTransfer.getData(SECTION_MIME) || (dragKind === 'section' ? dragId : '');
-                      if (group.section && sectionId) {
-                        dropSectionBefore(group.section.id, sectionId);
-                        return;
-                      }
-                      const entryId =
-                        e.dataTransfer.getData(ENTRY_MIME) || (dragKind === 'entry' ? dragId : '');
-                      if (entryId) {
-                        dropEntryOn(groupDropKey, entryId);
-                      }
-                    }}
-                    className={`mb-4 flex flex-wrap items-center gap-2 border-b border-[var(--border)] pb-2 ${
-                      group.section && canEdit ? 'cursor-grab active:cursor-grabbing' : ''
-                    } ${sectionDropActive ? 'border-[var(--accent)] bg-[var(--accent)]/10' : ''}`}
-                  >
-                    {editingSectionId === group.section?.id ? (
-                      <form
-                        className="flex flex-1 flex-wrap items-center gap-2"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          saveRename(group.section.id);
-                        }}
-                      >
-                        <input
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          autoFocus
-                          className="min-w-[10rem] flex-1 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-1.5 font-['Instrument_Serif'] text-2xl text-[var(--text)] outline-none focus:border-[var(--accent)]"
-                        />
-                        <button
-                          type="submit"
-                          className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[#1a1208]"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingSectionId(null)}
-                          className="text-xs text-[var(--muted)] hover:text-[var(--text)]"
-                        >
-                          Cancel
-                        </button>
-                      </form>
-                    ) : (
-                      <>
-                        <h3 className="font-['Instrument_Serif'] text-2xl tracking-tight text-[var(--text)] sm:text-3xl">
-                          {group.title}
-                        </h3>
-                        <span className="text-sm tabular-nums text-[var(--muted)]">{group.entries.length}</span>
-                        {canEdit && group.section && (
-                          <div className="ml-auto flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingSectionId(group.section.id);
-                                setEditingName(group.section.name);
-                              }}
-                              className="text-xs text-[var(--muted)] transition hover:text-[var(--text)]"
-                            >
-                              Rename
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    `Delete heading “${group.section.name}”? Titles stay in your library under Unsorted.`,
-                                  )
-                                ) {
-                                  onDeleteSection(group.section.id);
-                                }
-                              }}
-                              className="text-xs text-[var(--danger)] transition hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
+                busyId={busyId}
+                onStatusChange={onStatusChange}
+                onProgressChange={onProgressChange}
+                onRatingChange={onRatingChange}
+                onDelete={onDelete}
+                onSectionChange={onSectionChange}
+              />
+            ))}
+          </div>
 
-                {group.entries.length === 0 ? (
-                  <p
-                    className={`rounded-lg border border-dashed px-4 py-6 text-center text-sm text-[var(--muted)] ${
-                      entryDropActive ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-[var(--border)]'
-                    }`}
-                  >
-                    Drop titles here
-                  </p>
-                ) : (
-                  <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                    {group.entries.map((entry) => (
-                      <EntryCard
-                        key={entry.id}
-                        entry={entry}
-                        sections={sections}
-                        canEdit={canEdit}
-                        busy={busyId === entry.id}
-                        dragging={dragKind === 'entry' && dragId === entry.id}
-                        onStatusChange={onStatusChange}
-                        onProgressChange={onProgressChange}
-                        onRatingChange={onRatingChange}
-                        onDelete={onDelete}
-                        onSectionChange={onSectionChange}
-                        onDragStart={handleEntryDragStart}
-                        onDragEnd={clearDrag}
-                      />
-                    ))}
-                  </ul>
-                )}
+          <DragOverlay dropAnimation={null}>
+            {overlayEntry ? (
+              <div className="w-36 overflow-hidden rounded-xl border border-[var(--accent)] bg-[var(--bg-elevated)] shadow-xl">
+                <Poster path={overlayEntry.posterPath} title={overlayEntry.title} className="aspect-[2/3] w-full" />
+                <p className="line-clamp-2 p-2 text-xs font-medium">{overlayEntry.title}</p>
               </div>
-            );
-          })}
-        </div>
+            ) : overlayHeading ? (
+              <div className="rounded-lg border border-[var(--accent)] bg-[var(--bg-elevated)] px-4 py-2 font-['Instrument_Serif'] text-xl shadow-xl">
+                {overlayHeading.name}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
     </section>
   );

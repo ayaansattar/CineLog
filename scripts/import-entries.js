@@ -43,6 +43,7 @@ function mapEntry(e) {
     addedAt: e.addedAt ? new Date(e.addedAt) : new Date(),
     watchedAt: e.watchedAt ? new Date(e.watchedAt) : null,
     sectionId: e.sectionId ?? null,
+    sectionOrder: e.sectionOrder ?? 0,
   };
 }
 

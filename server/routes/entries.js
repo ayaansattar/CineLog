@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { requireAuth } from '../auth.js';
 import { serializeEntry, serializeEntries, storeGenres } from '../utils.js';
@@ -69,12 +70,75 @@ router.get('/', async (req, res) => {
     }
     const entries = await prisma.entry.findMany({
       where: status ? { status: String(status) } : undefined,
-      orderBy: { addedAt: 'desc' },
+      orderBy: [{ sectionOrder: 'asc' }, { addedAt: 'desc' }],
     });
     res.json(serializeEntries(entries));
   } catch (err) {
     console.error('GET /api/entries', err);
     res.status(500).json({ error: 'Failed to load entries' });
+  }
+});
+
+router.put('/reorder', requireAuth, async (req, res) => {
+  try {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array required' });
+    }
+
+    let sectionId = req.body?.sectionId;
+    if (sectionId === '' || sectionId === undefined) {
+      // undefined means infer / leave; empty string → null (unsorted)
+      if (sectionId === '') sectionId = null;
+    }
+    if (sectionId !== undefined && sectionId !== null) {
+      const section = await prisma.section.findUnique({ where: { id: String(sectionId) } });
+      if (!section) return res.status(400).json({ error: 'section not found' });
+      sectionId = section.id;
+    }
+
+    const uniqueIds = [...new Set(ids.map(String))];
+    if (uniqueIds.length !== ids.length) {
+      return res.status(400).json({ error: 'ids must be unique' });
+    }
+
+    const found = await prisma.entry.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true },
+    });
+    if (found.length !== uniqueIds.length) {
+      return res.status(400).json({ error: 'one or more entries not found' });
+    }
+
+    // Single UPDATE avoids row-lock deadlocks from many parallel updates.
+    const orderCase = Prisma.join(
+      uniqueIds.map((id, index) => Prisma.sql`WHEN ${id} THEN ${index}`),
+      ' ',
+    );
+    if (sectionId !== undefined) {
+      await prisma.$executeRaw`
+        UPDATE "Entry"
+        SET
+          "sectionOrder" = CASE "id" ${orderCase} END,
+          "sectionId" = ${sectionId}
+        WHERE "id" IN (${Prisma.join(uniqueIds)})
+      `;
+    } else {
+      await prisma.$executeRaw`
+        UPDATE "Entry"
+        SET "sectionOrder" = CASE "id" ${orderCase} END
+        WHERE "id" IN (${Prisma.join(uniqueIds)})
+      `;
+    }
+
+    const entries = await prisma.entry.findMany({
+      where: { id: { in: uniqueIds } },
+      orderBy: [{ sectionOrder: 'asc' }, { addedAt: 'desc' }],
+    });
+    res.json(serializeEntries(entries));
+  } catch (err) {
+    console.error('PUT /api/entries/reorder', err);
+    res.status(500).json({ error: 'Failed to reorder entries' });
   }
 });
 
@@ -191,6 +255,22 @@ router.patch('/:id', requireAuth, async (req, res) => {
         if (!section) return res.status(400).json({ error: 'section not found' });
         data.sectionId = section.id;
       }
+
+      const nextSectionId = data.sectionId;
+      const sectionChanged = nextSectionId !== existing.sectionId;
+      if (sectionChanged && req.body.sectionOrder === undefined) {
+        const max = await prisma.entry.aggregate({
+          where: nextSectionId == null ? { sectionId: null } : { sectionId: nextSectionId },
+          _max: { sectionOrder: true },
+        });
+        data.sectionOrder = (max._max.sectionOrder ?? -1) + 1;
+      }
+    }
+
+    if (req.body.sectionOrder !== undefined) {
+      const n = Number(req.body.sectionOrder);
+      if (!Number.isFinite(n)) return res.status(400).json({ error: 'sectionOrder must be a number' });
+      data.sectionOrder = Math.trunc(n);
     }
 
     if (req.body.currentSeason !== undefined) data.currentSeason = toNullableInt(req.body.currentSeason);

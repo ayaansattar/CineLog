@@ -11,5 +11,5 @@ export default function Poster({ path, title, className = '' }) {
       </div>
     );
   }
-  return <img src={src} alt={title} className={`object-cover ${className}`} loading="lazy" />;
+  return <img src={src} alt={title} draggable={false} className={`object-cover ${className}`} loading="lazy" />;
 }
