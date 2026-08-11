@@ -5,10 +5,10 @@ import { buildCandidatePool } from '../candidates.js';
 
 const router = Router();
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 function getGeminiModel() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey || apiKey === 'your_gemini_api_key_here') {
     const err = new Error('GEMINI_API_KEY is not configured');
     err.status = 503;
