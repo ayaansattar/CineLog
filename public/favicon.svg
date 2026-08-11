@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="7" fill="#14110f"/>
+  <!-- Slate -->
+  <path d="M5.5 14h21v11.5a2 2 0 0 1-2 2h-17a2 2 0 0 1-2-2V14Z" fill="#e8a54b"/>
+  <rect x="7.5" y="16" width="17" height="9" rx="1" fill="#1c1815"/>
+  <!-- Open stick with classic diagonal stripes -->
+  <g transform="rotate(-22 7 14)">
+    <rect x="5.5" y="7" width="21" height="7" rx="1.2" fill="#e8a54b"/>
+    <path fill="#14110f" d="M8.8 7 12.4 14H9.6L6 7h2.8Zm4.6 0 3.6 7h-2.8L10.6 7h2.8Zm4.6 0 3.6 7h-2.8L15.2 7h2.8Zm4.6 0 3.6 7h-2.8L19.8 7H23Z"/>
+  </g>
+  <circle cx="7.2" cy="14" r="1.35" fill="#c4842f"/>
+</svg>

@@ -63,7 +63,7 @@ Do **not** commit unless the user asks.
 
 ### Next session
 
-1. Deploy auth: set `AUTH_PASSWORD` on Render to match local `.env`, then push/redeploy.
+1. Confirm `AUTH_PASSWORD` is set on Render (same as local `.env`); redeploy if needed.
 2. Optional polish: chat history, cache candidate pools, custom domain.
 3. Rotate Neon password if it was ever pasted into chat; keep Render env in sync.
 
