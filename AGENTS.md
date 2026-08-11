@@ -29,7 +29,7 @@ fix: prevent duplicate entries on TMDB add
 
 Do **not** commit unless the user asks.
 
-## Stack (current)
+## Stack
 
 - React (Vite) + Tailwind frontend
 - Express API; serves `dist/` in production
@@ -38,8 +38,6 @@ Do **not** commit unless the user asks.
 
 ## Milestones
 
-Update status: `pending` → `in_progress` → `done`. Add a one-line note under Done when finishing.
-
 | # | Milestone | Status |
 |---|-----------|--------|
 | 1 | Project scaffold + DB schema + basic CRUD for entries | done |
@@ -47,29 +45,51 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 | 3 | Library views (watchlist / watching / watched grids) | done |
 | 4 | In-progress tracking (watching status, TV S/E, movie progress mark) | done |
 | 5 | Ratings UI | done |
-| 6 | CSV import (Letterboxd) | done |
+| 6 | Letterboxd CSV import (CLI one-time migration) | done |
 | 7 | Plain-text import | pending |
 | 8 | AI recommendation chat (candidate pool → Claude → cards) | pending |
-| 9 | Production build + deploy (Railway/Fly + persistent SQLite volume) | in_progress |
+| 9 | Production build + deploy (Railway + persistent SQLite volume) | in_progress |
 
-### Done
+### Done notes
 
-- **1–2**: Scaffolded Vite/React/Tailwind + Express + Prisma/SQLite; entries CRUD; TMDB multi-search proxy; add as watchlist/watched with poster/genres; basic library list on home.
-- **3**: Library tab with Watchlist / Watching / Watched grids; filters (type, genre) and sort; move status / remove from cards; API accepts `watching` status.
-- **4**: Progress fields (`currentSeason`/`currentEpisode`, `progressMark`, `progressUpdatedAt`); Watching cards show `S2E5` / mark overlay; inline editor + Next ep; start watching defaults TV to S1E1.
-- **5**: Half-star ratings (0–5 / 0.5); click cycles half → full → clear; setting a rating moves entry to Watched; Watched tab defaults to sort by rating.
-- **6**: Letterboxd CSV one-time import via `npm run import:letterboxd` (reads `data/watched.csv`); no Import UI.
+- **1–2**: Vite/React/Tailwind + Express + Prisma/SQLite; entries CRUD; TMDB multi-search proxy; add to library with poster/genres.
+- **3**: Search / Library nav; Watchlist · Watching · Watched grids; type/genre filters; sort; status moves + delete.
+- **4**: `currentSeason` / `currentEpisode` / `progressMark` / `progressUpdatedAt`; Watching card overlay + editor + Next ep.
+- **5**: Half-star ratings (left half = .5, right = full; click again clears); rating → status `watched`.
+- **6**: CLI Letterboxd import (`npm run import:letterboxd`). Also ran one-time PDF list import (`Movies.pdf` / `TV shows.pdf` → watchlist, Watching section → watching).
 
-### Next up
+### Next session
 
-- **7**: Plain-text list import.
+1. **Milestone 7** — plain-text list import (paste `Title` / `Title (Year)`, TMDB match + dedupe). Prefer CLI or a minimal UI (user previously removed CSV upload UI in favor of file-in-repo + script).
+2. **Milestone 8** — AI recommendation chat (highest design care: candidate pool only, no free invent).
+3. **Milestone 9** — finish Railway deploy + volume (prep already in repo; public placeholder is GitHub Pages).
+
+## Layout
+
+```
+src/                 React app (App, components, api)
+server/              Express + Prisma helpers + routes
+prisma/              Schema (+ local SQLite via DATABASE_URL)
+scripts/             One-time / batch importers
+data/                Import sources (gitignored PDFs/exports); see data/README.md
+docs/                GitHub Pages landing (TMDB app URL)
+```
+
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Vite `:5173` + API `:3001` (`/api` proxied) |
+| `npm run build` / `npm start` | Production build; Express serves `dist/` |
+| `npm run db:push` | Sync Prisma schema |
+| `npm run import:letterboxd` | Import Letterboxd export under `data/letterboxd-*/` |
+| `npm run import:pdf` | Parse `data/*.pdf` (needs `pdfplumber`) + import |
 
 ## Working notes
 
-- Env: `.env` from `.env.example` — `TMDB_API_KEY` required for search; never expose to client.
-- Dev: `npm run dev` (Vite `:5173`, API `:3001`, `/api` proxied).
-- DB: `npm run db:push` after schema changes.
-- Spec progress fields are in schema/UI (milestone 4 done).
-- **Letterboxd import**: auto-detects `data/letterboxd-*/`; imports ratings → watched → watchlist. Export folders are gitignored.
-- **PDF lists**: `data/Movies.pdf` + `data/TV shows.pdf` → `npm run import:pdf` (Watching section → watching; rest → watchlist; dedupes by title/TMDB id).
-- **Deploy**: pushed `feat: add Railway production deploy config`. Mount volume at `/app/data`, set `DATABASE_URL=file:/app/data/cinelog.db`, `NODE_ENV=production`. Generate `*.up.railway.app` domain for TMDB application URL.
+- Env: copy `.env.example` → `.env`. `TMDB_API_KEY` required for search/match; never expose to client.
+- SQLite: `DATABASE_URL=file:./dev.db` (Prisma resolves relative to `prisma/`).
+- Railway: `railway.json` ready. Mount volume at `/app/data`, set `DATABASE_URL=file:/app/data/cinelog.db`, `NODE_ENV=production`.
+- Public placeholder for TMDB: https://ayaansattar.github.io/CineLog/
+- Personal import artifacts (`data/*.pdf`, `data/letterboxd-*`, zips, `parsed-pdf-lists.json`) are gitignored.
+- PDF import uses Python `pdfplumber` (`pip install pdfplumber`).

@@ -46,7 +46,8 @@ Vite proxies `/api` to the Express server.
 | `npm run dev` | Client + API in watch mode |
 | `npm run build` | Production Vite build → `dist/` |
 | `npm start` | Sync Prisma schema, then serve API + static `dist/` |
-| `npm run import:letterboxd` | One-time Letterboxd CSV import from `data/watched.csv` |
+| `npm run import:letterboxd` | Import Letterboxd export from `data/letterboxd-*/` |
+| `npm run import:pdf` | Parse + import `data/Movies.pdf` and `data/TV shows.pdf` |
 | `npm run db:push` | Sync Prisma schema to SQLite |
 | `npm run db:studio` | Open Prisma Studio |
 
@@ -83,17 +84,10 @@ Build/start are defined in `railway.json` (`npm run build` / `npm start`). Healt
 - Move titles between statuses or remove them from library cards
 - Production deploy config for Railway + persistent SQLite volume
 
-## Letterboxd one-time import
+## Letterboxd / PDF import
 
-1. Export from Letterboxd and save as `data/watched.csv` (or `ratings.csv` renamed/copied there).
-2. Run:
-
-```bash
-npm run import:letterboxd
-```
-
-Optional flags: `--file=data/ratings.csv` `--status=watchlist`
+See [`data/README.md`](./data/README.md). Batch importers live under `scripts/` (no in-app upload UI).
 
 ## Next up
 
-Plain-text import, AI recommendations.
+Plain-text import, AI recommendations, finish Railway deploy.

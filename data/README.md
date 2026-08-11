@@ -1,24 +1,24 @@
-# Letterboxd export
+# data/
 
-Extract your Letterboxd zip under `data/` (e.g. `data/letterboxd-…/`).
+Import sources (mostly gitignored — personal lists).
 
-Then run:
+## Letterboxd
+
+Extract a Letterboxd zip under `data/` (folder name `letterboxd-…`), then:
 
 ```bash
 npm run import:letterboxd
 ```
 
-That imports, in order:
+Imports `ratings.csv` → watched, `watched.csv` → watched (gaps), `watchlist.csv` → watchlist.
 
-1. `ratings.csv` → **watched** (with star ratings)
-2. `watched.csv` → **watched** (fills any gaps; duplicates skipped)
-3. `watchlist.csv` → **watchlist**
+## PDF lists
 
-Optional:
+Place `Movies.pdf` / `TV shows.pdf` here, then:
 
 ```bash
-npm run import:letterboxd -- --dir=data/letterboxd-ayaansattar-2026-08-11-01-50-utc
-npm run import:letterboxd -- --file=data/…/watchlist.csv --status=watchlist
+pip install pdfplumber
+npm run import:pdf
 ```
 
-Export folders and zips are gitignored (personal data).
+Watching sections → `watching`; everything else → `watchlist`. Dedupes against existing library.
