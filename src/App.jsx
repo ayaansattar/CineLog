@@ -120,6 +120,19 @@ export default function App() {
     }
   }
 
+  async function handleRatingChange(id, rating) {
+    setBusyId(id);
+    setMessage('');
+    try {
+      await updateEntry(id, { rating });
+      await refreshEntries();
+    } catch (err) {
+      setMessage(err.message || 'Failed to update rating');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function handleDelete(id) {
     setBusyId(id);
     setMessage('');
@@ -262,6 +275,7 @@ export default function App() {
           entries={entries}
           onStatusChange={handleStatusChange}
           onProgressChange={handleProgressChange}
+          onRatingChange={handleRatingChange}
           onDelete={handleDelete}
           busyId={busyId}
         />

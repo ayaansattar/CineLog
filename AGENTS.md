@@ -46,7 +46,7 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 | 2 | TMDB search + add to library | done |
 | 3 | Library views (watchlist / watching / watched grids) | done |
 | 4 | In-progress tracking (watching status, TV S/E, movie progress mark) | done |
-| 5 | Ratings UI | pending |
+| 5 | Ratings UI | done |
 | 6 | CSV import (Letterboxd) | pending |
 | 7 | Plain-text import | pending |
 | 8 | AI recommendation chat (candidate pool → Claude → cards) | pending |
@@ -57,10 +57,11 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 - **1–2**: Scaffolded Vite/React/Tailwind + Express + Prisma/SQLite; entries CRUD; TMDB multi-search proxy; add as watchlist/watched with poster/genres; basic library list on home.
 - **3**: Library tab with Watchlist / Watching / Watched grids; filters (type, genre) and sort; move status / remove from cards; API accepts `watching` status.
 - **4**: Progress fields (`currentSeason`/`currentEpisode`, `progressMark`, `progressUpdatedAt`); Watching cards show `S2E5` / mark overlay; inline editor + Next ep; start watching defaults TV to S1E1.
+- **5**: Half-star ratings (0–5 / 0.5); click cycles half → full → clear; setting a rating moves entry to Watched; Watched tab defaults to sort by rating.
 
 ### Next up
 
-- **5**: Ratings UI (half-star, auto-flip to watched).
+- **6**: Letterboxd CSV import.
 
 ## Working notes
 

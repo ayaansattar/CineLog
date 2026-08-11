@@ -19,6 +19,18 @@ function toNullableString(value) {
   return s.length ? s : null;
 }
 
+function parseRating(value) {
+  if (value === null || value === '') return null;
+  if (value === undefined) return undefined;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0 || n > 5 || Math.round(n * 2) !== n * 2) {
+    const err = new Error('rating must be between 0 and 5 in 0.5 steps, or null');
+    err.status = 400;
+    throw err;
+  }
+  return n;
+}
+
 function applyProgressDefaults(data, existing) {
   const nextStatus = data.status ?? existing.status;
   const mediaType = data.mediaType ?? existing.mediaType;
@@ -139,7 +151,7 @@ router.post('/', async (req, res) => {
         posterPath: posterPath ?? null,
         genres: storeGenres(genres),
         status,
-        rating: rating != null ? Number(rating) : null,
+        rating: rating !== undefined ? parseRating(rating) : null,
         notes: notes ?? null,
         currentSeason: mediaType === 'tv' ? season ?? null : null,
         currentEpisode: mediaType === 'tv' ? episode ?? null : null,
@@ -152,7 +164,7 @@ router.post('/', async (req, res) => {
     res.status(201).json(serializeEntry(entry));
   } catch (err) {
     console.error('POST /api/entries', err);
-    res.status(500).json({ error: 'Failed to create entry' });
+    res.status(err.status || 500).json({ error: err.message || 'Failed to create entry' });
   }
 });
 
@@ -162,7 +174,7 @@ router.patch('/:id', async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Entry not found' });
 
     const data = {};
-    const fields = ['title', 'year', 'mediaType', 'posterPath', 'status', 'rating', 'notes', 'tmdbId'];
+    const fields = ['title', 'year', 'mediaType', 'posterPath', 'status', 'notes', 'tmdbId'];
     for (const key of fields) {
       if (req.body[key] !== undefined) data[key] = req.body[key];
     }
@@ -182,9 +194,13 @@ router.patch('/:id', async (req, res) => {
     if (data.status === 'watchlist' || data.status === 'watching') {
       data.watchedAt = null;
     }
-    if (data.rating != null && data.status !== 'watchlist' && data.status !== 'watching') {
-      data.status = 'watched';
-      if (!existing.watchedAt) data.watchedAt = new Date();
+
+    if (req.body.rating !== undefined) {
+      data.rating = parseRating(req.body.rating);
+      if (data.rating != null) {
+        data.status = 'watched';
+        if (!existing.watchedAt) data.watchedAt = new Date();
+      }
     }
 
     applyProgressDefaults(data, existing);
@@ -205,7 +221,7 @@ router.patch('/:id', async (req, res) => {
     res.json(serializeEntry(entry));
   } catch (err) {
     console.error('PATCH /api/entries/:id', err);
-    res.status(500).json({ error: 'Failed to update entry' });
+    res.status(err.status || 500).json({ error: err.message || 'Failed to update entry' });
   }
 });
 

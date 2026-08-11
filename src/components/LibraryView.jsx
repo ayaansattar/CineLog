@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import Poster from './Poster';
 import ProgressEditor, { formatProgressLabel } from './ProgressEditor';
+import StarRating from './StarRating';
 
 const TABS = [
   { id: 'watchlist', label: 'Watchlist' },
@@ -48,7 +49,14 @@ function sortEntries(entries, sortBy) {
   }
 }
 
-export default function LibraryView({ entries, onStatusChange, onProgressChange, onDelete, busyId }) {
+export default function LibraryView({
+  entries,
+  onStatusChange,
+  onProgressChange,
+  onRatingChange,
+  onDelete,
+  busyId,
+}) {
   const [tab, setTab] = useState('watchlist');
   const [mediaType, setMediaType] = useState('all');
   const [genre, setGenre] = useState('all');
@@ -98,7 +106,9 @@ export default function LibraryView({ entries, onStatusChange, onProgressChange,
               type="button"
               onClick={() => {
                 setTab(t.id);
-                setSortBy(t.id === 'watching' ? 'progressUpdatedAt' : 'addedAt');
+                if (t.id === 'watching') setSortBy('progressUpdatedAt');
+                else if (t.id === 'watched') setSortBy('rating');
+                else setSortBy('addedAt');
               }}
               className={`rounded-md px-3 py-2 text-sm transition sm:px-4 ${
                 tab === t.id
@@ -196,8 +206,14 @@ export default function LibraryView({ entries, onStatusChange, onProgressChange,
                     <h3 className="line-clamp-2 text-sm font-medium leading-snug">{entry.title}</h3>
                     <p className="mt-1 text-xs text-[var(--muted)]">
                       {entry.year ?? '—'} · {entry.mediaType === 'tv' ? 'TV' : 'Movie'}
-                      {entry.rating != null ? ` · ${entry.rating}★` : ''}
                     </p>
+                    <div className="mt-2">
+                      <StarRating
+                        value={entry.rating}
+                        disabled={busy}
+                        onChange={(rating) => onRatingChange(entry.id, rating)}
+                      />
+                    </div>
                   </div>
 
                   {showProgressEditor && (

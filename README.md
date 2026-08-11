@@ -77,9 +77,10 @@ Build/start are defined in `railway.json` (`npm run build` / `npm start`). Healt
 - Add results as **watchlist**, **watching**, or **watched**, enriched with poster + genres
 - Library tab: Watchlist / Watching / Watched grids with type/genre filters and sorting
 - In-progress tracking: TV season/episode (`S2E5`) and movie progress marks on Watching cards
+- Half-star ratings (0–5); rating a title moves it to Watched
 - Move titles between statuses or remove them from library cards
 - Production deploy config for Railway + persistent SQLite volume
 
 ## Next up
 
-Ratings UI, CSV/plain-text import, AI recommendations.
+Letterboxd CSV import, plain-text import, AI recommendations.
