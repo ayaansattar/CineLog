@@ -184,6 +184,7 @@ export default function LibraryView({
   const [mediaType, setMediaType] = useState('movie');
   const [genre, setGenre] = useState('all');
   const [sortBy, setSortBy] = useState('addedAt');
+  const [libraryQuery, setLibraryQuery] = useState('');
   const [newHeading, setNewHeading] = useState('');
   const [addingHeading, setAddingHeading] = useState(false);
   const [editingSectionId, setEditingSectionId] = useState(null);
@@ -222,13 +223,23 @@ export default function LibraryView({
     if (genre !== 'all') {
       list = list.filter((e) => Array.isArray(e.genres) && e.genres.includes(genre));
     }
+    const q = libraryQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter((e) => {
+        const title = String(e.title || '').toLowerCase();
+        const year = e.year != null ? String(e.year) : '';
+        const genres = Array.isArray(e.genres) ? e.genres.join(' ').toLowerCase() : '';
+        return title.includes(q) || year.includes(q) || genres.includes(q);
+      });
+    }
     const effectiveSort = tab === 'watching' && sortBy === 'addedAt' ? 'progressUpdatedAt' : sortBy;
     return sortEntries(list, effectiveSort);
-  }, [entries, tab, mediaType, genre, sortBy]);
+  }, [entries, tab, mediaType, genre, sortBy, libraryQuery]);
 
   const groups = useMemo(() => {
     const byId = new Map(sections.map((s) => [s.id, []]));
     const unsorted = [];
+    const searching = Boolean(libraryQuery.trim());
 
     for (const entry of filtered) {
       if (entry.sectionId && byId.has(entry.sectionId)) {
@@ -245,9 +256,10 @@ export default function LibraryView({
         title: section.name,
         entries: byId.get(section.id) || [],
       }))
-      .filter((group) => group.entries.length > 0 || canEdit);
+      .filter((group) => group.entries.length > 0 || (canEdit && !searching));
 
-    const showUnsorted = unsorted.length > 0 || (canEdit && sections.length > 0);
+    const showUnsorted =
+      unsorted.length > 0 || (canEdit && sections.length > 0 && !searching);
     if (showUnsorted) {
       ordered.push({
         key: 'unsorted',
@@ -258,7 +270,7 @@ export default function LibraryView({
     }
 
     return ordered;
-  }, [filtered, sections, canEdit]);
+  }, [filtered, sections, canEdit, libraryQuery]);
 
   function clearDrag() {
     setDragKind(null);
@@ -418,6 +430,17 @@ export default function LibraryView({
       </div>
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <label className="flex min-w-[14rem] flex-[2] flex-col gap-1 text-sm">
+          <span className="text-[var(--muted)]">Search library</span>
+          <input
+            value={libraryQuery}
+            onChange={(e) => setLibraryQuery(e.target.value)}
+            placeholder="Title, year, or genre…"
+            className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-[var(--text)] outline-none transition placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+            autoComplete="off"
+          />
+        </label>
+
         <label className="flex min-w-[9rem] flex-1 flex-col gap-1 text-sm">
           <span className="text-[var(--muted)]">Genre</span>
           <select
@@ -472,21 +495,15 @@ export default function LibraryView({
         </form>
       )}
 
-      {filtered.length === 0 && groups.every((g) => g.entries.length === 0) && !canEdit ? (
+      {filtered.length === 0 && groups.every((g) => g.entries.length === 0) ? (
         <p className="text-[var(--muted)]">
-          {tab === 'watching'
-            ? `Nothing in progress for ${mediaType === 'tv' ? 'TV' : 'movies'} — move a title here from Watchlist when you start it.`
-            : tab === 'watched'
-              ? `No watched ${mediaType === 'tv' ? 'TV shows' : 'movies'} yet.`
-              : `No ${mediaType === 'tv' ? 'TV shows' : 'movies'} on your watchlist — search TMDB to add something.`}
-        </p>
-      ) : filtered.length === 0 && groups.every((g) => g.entries.length === 0) && sections.length === 0 ? (
-        <p className="text-[var(--muted)]">
-          {tab === 'watching'
-            ? `Nothing in progress for ${mediaType === 'tv' ? 'TV' : 'movies'} — move a title here from Watchlist when you start it.`
-            : tab === 'watched'
-              ? `No watched ${mediaType === 'tv' ? 'TV shows' : 'movies'} yet.`
-              : `No ${mediaType === 'tv' ? 'TV shows' : 'movies'} on your watchlist — search TMDB to add something.`}
+          {libraryQuery.trim()
+            ? `No ${mediaType === 'tv' ? 'TV shows' : 'movies'} match “${libraryQuery.trim()}” in this view.`
+            : tab === 'watching'
+              ? `Nothing in progress for ${mediaType === 'tv' ? 'TV' : 'movies'} — move a title here from Watchlist when you start it.`
+              : tab === 'watched'
+                ? `No watched ${mediaType === 'tv' ? 'TV shows' : 'movies'} yet.`
+                : `No ${mediaType === 'tv' ? 'TV shows' : 'movies'} on your watchlist — search TMDB to add something.`}
         </p>
       ) : (
         <div className="space-y-10">
