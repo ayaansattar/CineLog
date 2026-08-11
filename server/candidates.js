@@ -1,7 +1,7 @@
 import { tmdbFetch, yearFromDate } from './tmdbClient.js';
 
 const TARGET_MIN = 40;
-const TARGET_MAX = 80;
+const TARGET_MAX = 120;
 const TOP_SEED_COUNT = 15;
 const CONCURRENCY = 4;
 
@@ -55,6 +55,7 @@ function resolveGenres(candidate, genreMaps) {
  */
 export async function buildCandidatePool(prisma) {
   const entries = await prisma.entry.findMany();
+  const tasteProfile = buildTasteProfile(entries);
   const inLibrary = new Set(
     entries
       .filter((e) => e.tmdbId != null)
@@ -77,25 +78,6 @@ export async function buildCandidatePool(prisma) {
       .slice(0, TOP_SEED_COUNT - seeds.length);
     seeds = [...seeds, ...extra];
   }
-
-  const tasteProfile = ratedWatched.slice(0, 40).map((e) => {
-    let genres = null;
-    if (e.genres) {
-      try {
-        const parsed = JSON.parse(e.genres);
-        genres = Array.isArray(parsed) ? parsed : null;
-      } catch {
-        genres = null;
-      }
-    }
-    return {
-      title: e.title,
-      year: e.year,
-      mediaType: e.mediaType,
-      rating: e.rating,
-      genres,
-    };
-  });
 
   const byKey = new Map();
 
@@ -163,12 +145,14 @@ export async function buildCandidatePool(prisma) {
     const { genreIds, ...rest } = c;
     return {
       id: `c${index}`,
+      entryId: null,
       ...rest,
       genres: resolveGenres(c, genreMaps),
     };
   });
 
   return {
+    source: 'discover',
     seeds: seeds.map((s) => ({
       title: s.title,
       year: s.year,
@@ -179,3 +163,59 @@ export async function buildCandidatePool(prisma) {
     candidates,
   };
 }
+
+/**
+ * Candidate pool = titles already on the user's watchlist.
+ */
+export async function buildWatchlistPool(prisma) {
+  const entries = await prisma.entry.findMany();
+  const tasteProfile = buildTasteProfile(entries);
+
+  const watchlist = entries
+    .filter((e) => e.status === 'watchlist')
+    .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt));
+
+  const candidates = watchlist.slice(0, TARGET_MAX).map((e, index) => ({
+    id: `w${index}`,
+    entryId: e.id,
+    tmdbId: e.tmdbId,
+    title: e.title,
+    year: e.year,
+    mediaType: e.mediaType,
+    posterPath: e.posterPath ?? null,
+    overview: '',
+    genres: parseGenresJson(e.genres),
+  }));
+
+  return {
+    source: 'watchlist',
+    seeds: [],
+    tasteProfile,
+    candidates,
+  };
+}
+
+function parseGenresJson(genres) {
+  if (!genres) return null;
+  try {
+    const parsed = JSON.parse(genres);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildTasteProfile(entries) {
+  return entries
+    .filter((e) => e.status === 'watched' && e.rating != null)
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.watchedAt - a.watchedAt)
+    .slice(0, 40)
+    .map((e) => ({
+      title: e.title,
+      year: e.year,
+      mediaType: e.mediaType,
+      rating: e.rating,
+      genres: parseGenresJson(e.genres),
+    }));
+}
+

@@ -153,12 +153,12 @@ export default function App() {
     }
   }
 
-  async function handleAskRecs(askQuery) {
+  async function handleAskRecs(askQuery, source = 'auto') {
     setRecsLoading(true);
     setRecsError('');
     setMessage('');
     try {
-      const data = await getRecommendations(askQuery);
+      const data = await getRecommendations(askQuery, source);
       setRecs(data.recommendations || []);
       setRecsMeta(data.meta || null);
     } catch (err) {
@@ -170,12 +170,27 @@ export default function App() {
     }
   }
 
+  async function handleStartWatchingFromRec(rec) {
+    if (!rec.entryId) return;
+    setBusyId(rec.entryId);
+    setMessage('');
+    try {
+      await updateEntry(rec.entryId, { status: 'watching' });
+      setMessage(`Moved “${rec.title}” to watching.`);
+      await refreshEntries();
+    } catch (err) {
+      setMessage(err.message || 'Failed to update entry');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const subtitle =
     view === 'search'
       ? 'Search TMDB and add movies or shows to your library.'
       : view === 'library'
         ? 'Browse watchlist, currently watching, and watched titles.'
-        : 'Ask for suggestions grounded in TMDB — Gemini only picks from a live candidate pool.';
+        : 'Ask for suggestions — discover new titles, or pick from your watchlist.';
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -314,11 +329,13 @@ export default function App() {
         <RecsView
           onAsk={handleAskRecs}
           onAdd={(rec) => handleAdd(rec, 'watchlist')}
+          onStartWatching={handleStartWatchingFromRec}
           recommendations={recs}
           meta={recsMeta}
           loading={recsLoading}
           error={recsError}
           addingId={addingId}
+          busyId={busyId}
         />
       )}
     </div>

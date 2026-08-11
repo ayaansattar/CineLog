@@ -52,10 +52,10 @@ export function deleteEntry(id) {
   });
 }
 
-export function getRecommendations(query) {
+export function getRecommendations(query, source = 'auto') {
   return request('/api/recs', {
     method: 'POST',
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, source }),
   });
 }
 
