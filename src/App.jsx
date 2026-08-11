@@ -273,7 +273,7 @@ export default function App() {
           )}
 
           {results.length > 0 && (
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {results.map((result) => {
                 const key = `${result.mediaType}-${result.tmdbId}`;
                 const busy = addingId === key;

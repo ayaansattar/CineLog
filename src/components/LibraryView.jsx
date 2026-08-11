@@ -182,7 +182,7 @@ export default function LibraryView({
               : 'Watchlist is empty — search TMDB to add something.'}
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filtered.map((entry) => {
             const busy = busyId === entry.id;
             const progressLabel = formatProgressLabel(entry);

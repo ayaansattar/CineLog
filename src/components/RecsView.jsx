@@ -185,7 +185,7 @@ export default function RecsView({
               {meta.requestedSource === 'auto' ? ` (auto → ${meta.source})` : ''}
             </p>
           )}
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {recommendations.map((rec) => {
               const key = rec.entryId
                 ? `entry-${rec.entryId}`
@@ -200,7 +200,7 @@ export default function RecsView({
                     <Poster
                       path={rec.posterPath}
                       title={rec.title}
-                      className="aspect-[2/3] w-24 shrink-0 rounded-lg sm:w-full sm:rounded-none"
+                      className="aspect-[2/3] w-20 shrink-0 rounded-lg sm:w-full sm:rounded-none"
                     />
                     <div className="min-w-0 flex-1 space-y-2 sm:p-3">
                       <div>
