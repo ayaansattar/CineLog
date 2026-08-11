@@ -44,7 +44,7 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 |---|-----------|--------|
 | 1 | Project scaffold + DB schema + basic CRUD for entries | done |
 | 2 | TMDB search + add to library | done |
-| 3 | Library views (watchlist / watching / watched grids) | pending |
+| 3 | Library views (watchlist / watching / watched grids) | done |
 | 4 | In-progress tracking (watching status, TV S/E, movie progress mark) | pending |
 | 5 | Ratings UI | pending |
 | 6 | CSV import (Letterboxd) | pending |
@@ -55,10 +55,11 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 ### Done
 
 - **1–2**: Scaffolded Vite/React/Tailwind + Express + Prisma/SQLite; entries CRUD; TMDB multi-search proxy; add as watchlist/watched with poster/genres; basic library list on home.
+- **3**: Library tab with Watchlist / Watching / Watched grids; filters (type, genre) and sort; move status / remove from cards; API accepts `watching` status.
 
 ### Next up
 
-- **9 (in progress)**: Railway deploy prep is on `main` (`railway.json`, prod start + volume path). Waiting on host choice / account (trial vs free alternative) for the public URL used on TMDB key signup.
+- **4**: Progress fields (TV season/episode, movie progress mark) and show them on Watching cards.
 
 ## Working notes
 

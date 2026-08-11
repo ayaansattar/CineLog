@@ -3,10 +3,14 @@ import prisma from '../db.js';
 import { serializeEntry, serializeEntries, storeGenres } from '../utils.js';
 
 const router = Router();
+const STATUSES = ['watchlist', 'watching', 'watched'];
 
 router.get('/', async (req, res) => {
   try {
     const { status } = req.query;
+    if (status && !STATUSES.includes(String(status))) {
+      return res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` });
+    }
     const entries = await prisma.entry.findMany({
       where: status ? { status: String(status) } : undefined,
       orderBy: { addedAt: 'desc' },
@@ -49,8 +53,8 @@ router.post('/', async (req, res) => {
     if (!['movie', 'tv'].includes(mediaType)) {
       return res.status(400).json({ error: 'mediaType must be movie or tv' });
     }
-    if (!['watchlist', 'watched'].includes(status)) {
-      return res.status(400).json({ error: 'status must be watchlist or watched' });
+    if (!STATUSES.includes(status)) {
+      return res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` });
     }
 
     if (tmdbId != null) {
@@ -99,13 +103,17 @@ router.patch('/:id', async (req, res) => {
     }
     if (req.body.genres !== undefined) data.genres = storeGenres(req.body.genres);
 
+    if (data.status !== undefined && !STATUSES.includes(data.status)) {
+      return res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` });
+    }
+
     if (data.status === 'watched' && !existing.watchedAt) {
       data.watchedAt = new Date();
     }
-    if (data.status === 'watchlist') {
+    if (data.status === 'watchlist' || data.status === 'watching') {
       data.watchedAt = null;
     }
-    if (data.rating != null && existing.status !== 'watched' && data.status !== 'watchlist') {
+    if (data.rating != null && data.status !== 'watchlist' && data.status !== 'watching') {
       data.status = 'watched';
       if (!existing.watchedAt) data.watchedAt = new Date();
     }

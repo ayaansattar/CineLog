@@ -74,10 +74,11 @@ Build/start are defined in `railway.json` (`npm run build` / `npm start`). Healt
 ## Current features
 
 - TMDB multi-search (server-proxied; API key never sent to the browser)
-- Add results as **watchlist** or **watched**, enriched with poster + genres
-- Basic library list of saved entries
+- Add results as **watchlist**, **watching**, or **watched**, enriched with poster + genres
+- Library tab: Watchlist / Watching / Watched grids with type/genre filters and sorting
+- Move titles between statuses or remove them from library cards
 - Production deploy config for Railway + persistent SQLite volume
 
 ## Next up
 
-Library views, watching progress, ratings, CSV/plain-text import, AI recommendations.
+In-progress tracking (S/E + movie progress mark), ratings, CSV/plain-text import, AI recommendations.
