@@ -42,10 +42,35 @@ function normalizeTitle(title) {
 }
 
 /**
- * Match a Letterboxd title+year against TMDB (movies first, then multi).
- * Returns enriched metadata or null if no confident match.
+ * Match a title against TMDB.
+ * @param {string} title
+ * @param {number|null} year
+ * @param {'movie'|'tv'|null} preferredMediaType
  */
-export async function matchTitleYear(title, year) {
+export async function matchTitleYear(title, year, preferredMediaType = null) {
+  if (preferredMediaType === 'tv') {
+    const tvParams = {
+      query: title,
+      include_adult: 'false',
+      language: 'en-US',
+      page: '1',
+    };
+    if (year) tvParams.first_air_date_year = String(year);
+    const tvData = await tmdbFetch('/search/tv', tvParams);
+    const tvHit = pickBestMatch(tvData.results || [], title, year, 'tv');
+    if (tvHit) {
+      const details = await tmdbFetch(`/tv/${tvHit.id}`, { language: 'en-US' });
+      return {
+        tmdbId: details.id,
+        title: details.name,
+        year: yearFromDate(details.first_air_date) ?? year,
+        mediaType: 'tv',
+        posterPath: details.poster_path ?? null,
+        genres: (details.genres || []).map((g) => g.name),
+      };
+    }
+  }
+
   const params = {
     query: title,
     include_adult: 'false',
@@ -54,18 +79,20 @@ export async function matchTitleYear(title, year) {
   };
   if (year) params.year = String(year);
 
-  const movieData = await tmdbFetch('/search/movie', params);
-  const movieHit = pickBestMatch(movieData.results || [], title, year, 'movie');
-  if (movieHit) {
-    const details = await tmdbFetch(`/movie/${movieHit.id}`, { language: 'en-US' });
-    return {
-      tmdbId: details.id,
-      title: details.title,
-      year: yearFromDate(details.release_date) ?? year,
-      mediaType: 'movie',
-      posterPath: details.poster_path ?? null,
-      genres: (details.genres || []).map((g) => g.name),
-    };
+  if (preferredMediaType !== 'tv') {
+    const movieData = await tmdbFetch('/search/movie', params);
+    const movieHit = pickBestMatch(movieData.results || [], title, year, 'movie');
+    if (movieHit) {
+      const details = await tmdbFetch(`/movie/${movieHit.id}`, { language: 'en-US' });
+      return {
+        tmdbId: details.id,
+        title: details.title,
+        year: yearFromDate(details.release_date) ?? year,
+        mediaType: 'movie',
+        posterPath: details.poster_path ?? null,
+        genres: (details.genres || []).map((g) => g.name),
+      };
+    }
   }
 
   const multiData = await tmdbFetch('/search/multi', {
@@ -74,14 +101,19 @@ export async function matchTitleYear(title, year) {
     language: 'en-US',
     page: '1',
   });
-  const multiHit = pickBestMatch(
-    (multiData.results || []).filter((r) => r.media_type === 'movie' || r.media_type === 'tv'),
-    title,
-    year
+  let candidates = (multiData.results || []).filter(
+    (r) => r.media_type === 'movie' || r.media_type === 'tv'
   );
+  if (preferredMediaType) {
+    candidates = [
+      ...candidates.filter((r) => r.media_type === preferredMediaType),
+      ...candidates.filter((r) => r.media_type !== preferredMediaType),
+    ];
+  }
+  const multiHit = pickBestMatch(candidates, title, year);
   if (!multiHit) return null;
 
-  const mediaType = multiHit.media_type || 'movie';
+  const mediaType = multiHit.media_type || preferredMediaType || 'movie';
   const details = await tmdbFetch(`/${mediaType}/${multiHit.id}`, { language: 'en-US' });
   const detailTitle = mediaType === 'movie' ? details.title : details.name;
   const detailYear = yearFromDate(

@@ -71,4 +71,5 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 - DB: `npm run db:push` after schema changes.
 - Spec progress fields are in schema/UI (milestone 4 done).
 - **Letterboxd import**: auto-detects `data/letterboxd-*/`; imports ratings → watched → watchlist. Export folders are gitignored.
+- **PDF lists**: `data/Movies.pdf` + `data/TV shows.pdf` → `npm run import:pdf` (Watching section → watching; rest → watchlist; dedupes by title/TMDB id).
 - **Deploy**: pushed `feat: add Railway production deploy config`. Mount volume at `/app/data`, set `DATABASE_URL=file:/app/data/cinelog.db`, `NODE_ENV=production`. Generate `*.up.railway.app` domain for TMDB application URL.

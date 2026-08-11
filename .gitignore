@@ -8,3 +8,5 @@ prisma/dev.db
 prisma/dev.db-journal
 data/letterboxd-*/
 data/*.zip
+data/*.pdf
+data/parsed-pdf-lists.json

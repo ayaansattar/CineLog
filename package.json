@@ -12,6 +12,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "import:letterboxd": "node scripts/import-letterboxd.js",
+    "import:pdf": "python scripts/parse_pdf_lists.py && node scripts/import-pdf-lists.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {
