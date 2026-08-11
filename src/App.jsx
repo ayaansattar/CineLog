@@ -29,22 +29,59 @@ export default function App() {
   const [busyId, setBusyId] = useState(null);
   const [message, setMessage] = useState('');
   const [entries, setEntries] = useState([]);
+  const [entriesLoading, setEntriesLoading] = useState(true);
+  const [entriesError, setEntriesError] = useState('');
   const [recs, setRecs] = useState([]);
   const [recsMeta, setRecsMeta] = useState(null);
   const [recsLoading, setRecsLoading] = useState(false);
   const [recsError, setRecsError] = useState('');
 
-  async function refreshEntries() {
+  async function refreshEntries({ quiet } = {}) {
+    if (!quiet) {
+      setEntriesLoading(true);
+      setEntriesError('');
+    }
     try {
       const data = await getEntries();
-      setEntries(data);
+      setEntries(Array.isArray(data) ? data : []);
+      setEntriesError('');
     } catch (err) {
       console.error(err);
+      setEntriesError(err.message || 'Failed to load library');
+    } finally {
+      if (!quiet) setEntriesLoading(false);
     }
   }
 
   useEffect(() => {
-    refreshEntries();
+    let cancelled = false;
+
+    async function load() {
+      setEntriesLoading(true);
+      setEntriesError('');
+      try {
+        // Free hosts often sleep; retry once after a short wait.
+        try {
+          const data = await getEntries();
+          if (!cancelled) setEntries(Array.isArray(data) ? data : []);
+        } catch (firstErr) {
+          await new Promise((r) => setTimeout(r, 1500));
+          const data = await getEntries();
+          if (!cancelled) setEntries(Array.isArray(data) ? data : []);
+        }
+        if (!cancelled) setEntriesError('');
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setEntriesError(err.message || 'Failed to load library');
+      } finally {
+        if (!cancelled) setEntriesLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -229,6 +266,23 @@ export default function App() {
         </p>
       )}
 
+      {entriesLoading && (
+        <p className="mb-6 text-sm text-[var(--muted)]">Loading your library from the database…</p>
+      )}
+
+      {entriesError && !entriesLoading && (
+        <div className="mb-6 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-4 py-3">
+          <p className="text-sm text-[var(--danger)]">{entriesError}</p>
+          <button
+            type="button"
+            onClick={() => refreshEntries()}
+            className="mt-2 rounded-md border border-[var(--danger)]/40 px-3 py-1.5 text-xs text-[var(--danger)] transition hover:bg-[var(--danger)]/10"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {view === 'search' && (
         <section>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -305,11 +359,14 @@ export default function App() {
             </ul>
           )}
 
-          {!query.trim() && entries.length > 0 && (
+          {!query.trim() && !entriesLoading && entries.length > 0 && (
             <p className="mt-8 text-sm text-[var(--muted)]">
               {entries.length} title{entries.length === 1 ? '' : 's'} in your library — open the Library tab to
               browse.
             </p>
+          )}
+          {!query.trim() && !entriesLoading && !entriesError && entries.length === 0 && (
+            <p className="mt-8 text-sm text-[var(--muted)]">Your library is empty — search TMDB to add something.</p>
           )}
         </section>
       )}
