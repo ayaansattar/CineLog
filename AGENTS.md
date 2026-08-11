@@ -50,7 +50,7 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 | 6 | CSV import (Letterboxd) | pending |
 | 7 | Plain-text import | pending |
 | 8 | AI recommendation chat (candidate pool → Claude → cards) | pending |
-| 9 | Production build + deploy (Railway/Fly + persistent SQLite volume) | pending |
+| 9 | Production build + deploy (Railway/Fly + persistent SQLite volume) | in_progress |
 
 ### Done
 
@@ -58,7 +58,7 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 
 ### Next up
 
-- **3**: Dedicated library views for watchlist / watching / watched.
+- **9 (in progress)**: Railway deploy prep is on `main` (`railway.json`, prod start + volume path). Waiting on host choice / account (trial vs free alternative) for the public URL used on TMDB key signup.
 
 ## Working notes
 
@@ -66,3 +66,4 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 - Dev: `npm run dev` (Vite `:5173`, API `:3001`, `/api` proxied).
 - DB: `npm run db:push` after schema changes.
 - Spec also includes `watching` status + progress fields — not in schema/UI yet (milestone 4).
+- **Deploy**: pushed `feat: add Railway production deploy config`. Mount volume at `/app/data`, set `DATABASE_URL=file:/app/data/cinelog.db`, `NODE_ENV=production`. Generate `*.up.railway.app` domain for TMDB application URL.
