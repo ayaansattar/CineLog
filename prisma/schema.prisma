@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Entry {
+  id         String    @id @default(cuid())
+  tmdbId     Int?
+  title      String
+  year       Int?
+  mediaType  String
+  posterPath String?
+  genres     String?
+  status     String
+  rating     Float?
+  notes      String?
+  addedAt    DateTime  @default(now())
+  watchedAt  DateTime?
+
+  @@index([status])
+  @@index([title, year])
+}

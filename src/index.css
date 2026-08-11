@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+
+:root {
+  --bg: #14110f;
+  --bg-elevated: #1c1815;
+  --surface: #241f1b;
+  --border: #3a322c;
+  --text: #f3ebe3;
+  --muted: #a8998c;
+  --accent: #e8a54b;
+  --accent-dim: #c4842f;
+  --danger: #d96c5c;
+  --success: #6fad7a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(232, 165, 75, 0.14), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(120, 80, 50, 0.18), transparent 50%),
+    var(--bg);
+}
+
+button,
+input {
+  font: inherit;
+}
