@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   createEntry,
   createSection,
@@ -53,6 +53,15 @@ export default function App() {
   const [showFloatingBar, setShowFloatingBar] = useState(false);
   const headerRef = useRef(null);
   const scrollByViewRef = useRef({ ...EMPTY_SCROLL });
+
+  const libraryByTmdbKey = useMemo(() => {
+    const map = new Map();
+    for (const entry of entries) {
+      if (entry.tmdbId == null || !entry.mediaType) continue;
+      map.set(`${entry.mediaType}-${entry.tmdbId}`, entry);
+    }
+    return map;
+  }, [entries]);
 
   function changeView(next) {
     if (next === view) return;
@@ -606,13 +615,34 @@ export default function App() {
               {results.map((result) => {
                 const key = `${result.mediaType}-${result.tmdbId}`;
                 const busy = addingId === key;
-                const editDisabled = busy || !authenticated;
+                const existing = libraryByTmdbKey.get(key);
+                const editDisabled = busy || !authenticated || Boolean(existing);
+                const statusLabel =
+                  existing?.status === 'watching'
+                    ? 'Watching'
+                    : existing?.status === 'watched'
+                      ? 'Watched'
+                      : existing
+                        ? 'Watchlist'
+                        : null;
+                const headingName = existing?.sectionId
+                  ? sections.find((s) => s.id === existing.sectionId)?.name
+                  : null;
                 return (
                   <li
                     key={key}
-                    className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]"
+                    className={`overflow-hidden rounded-xl border bg-[var(--bg-elevated)] ${
+                      existing ? 'border-[var(--accent)]/50' : 'border-[var(--border)]'
+                    }`}
                   >
-                    <Poster path={result.posterPath} title={result.title} className="aspect-[2/3] w-full" />
+                    <div className="relative">
+                      <Poster path={result.posterPath} title={result.title} className="aspect-[2/3] w-full" />
+                      {statusLabel && (
+                        <span className="absolute top-2 left-2 rounded bg-black/80 px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
+                          In {statusLabel.toLowerCase()}
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-2 p-3">
                       <div>
                         <h2 className="line-clamp-2 text-sm font-medium leading-snug">{result.title}</h2>
@@ -620,7 +650,15 @@ export default function App() {
                           {result.year ?? '—'} · {result.mediaType === 'tv' ? 'TV' : 'Movie'}
                         </p>
                       </div>
-                      {!authenticated ? (
+                      {existing ? (
+                        <p className="rounded-md border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-2 py-1.5 text-center text-xs text-[var(--accent)]">
+                          Already in your library
+                          <span className="mt-0.5 block text-[10px] text-[var(--muted)]">
+                            {statusLabel}
+                            {headingName ? ` · ${headingName}` : ''}
+                          </span>
+                        </p>
+                      ) : !authenticated ? (
                         <p className="text-[11px] text-[var(--muted)]">Log in to add</p>
                       ) : (
                         <div className="flex flex-col gap-1.5">
