@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CineLog</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #14110f;
+        --text: #f3ebe3;
+        --muted: #a8998c;
+        --accent: #e8a54b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        font-family: Georgia, 'Times New Roman', serif;
+        color: var(--text);
+        background:
+          radial-gradient(ellipse 80% 50% at 10% -10%, rgba(232, 165, 75, 0.14), transparent 55%),
+          var(--bg);
+      }
+      main { max-width: 36rem; text-align: center; }
+      h1 {
+        margin: 0;
+        font-size: clamp(3rem, 10vw, 4.5rem);
+        font-weight: 400;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 1rem 0 0;
+        font-family: system-ui, sans-serif;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      a { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>CineLog</h1>
+      <p>
+        Personal movie and TV tracker with AI recommendations.
+        <br />
+        <a href="https://github.com/ayaansattar/CineLog">Source on GitHub</a>
+      </p>
+    </main>
+  </body>
+</html>
