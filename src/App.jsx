@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   createEntry,
   deleteEntry,
@@ -12,6 +12,7 @@ import {
   updateEntry,
 } from './api';
 import AuthBar from './components/AuthBar';
+import FloatingBar from './components/FloatingBar';
 import LibraryView from './components/LibraryView';
 import Poster from './components/Poster';
 import RecsView from './components/RecsView';
@@ -41,6 +42,8 @@ export default function App() {
   const [recsError, setRecsError] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
   const [authConfigured, setAuthConfigured] = useState(true);
+  const [showFloatingBar, setShowFloatingBar] = useState(false);
+  const headerRef = useRef(null);
 
   async function refreshAuth() {
     try {
@@ -54,6 +57,21 @@ export default function App() {
 
   useEffect(() => {
     refreshAuth();
+  }, []);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowFloatingBar(!entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: '-8px 0px 0px 0px' },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   async function refreshEntries({ quiet } = {}) {
@@ -304,7 +322,19 @@ export default function App() {
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-8">
+      <FloatingBar
+        visible={showFloatingBar}
+        view={view}
+        views={VIEWS}
+        onViewChange={setView}
+        query={query}
+        onQueryChange={(value) => {
+          setQuery(value);
+          if (view !== 'search') setView('search');
+        }}
+      />
+
+      <header ref={headerRef} className="mb-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="mb-2 text-sm tracking-[0.2em] text-[var(--muted)] uppercase">Personal tracker</p>
