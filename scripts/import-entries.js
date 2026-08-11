@@ -33,6 +33,7 @@ function mapEntry(e) {
     mediaType: e.mediaType,
     posterPath: e.posterPath ?? null,
     genres: e.genres ?? null,
+    overview: e.overview ?? null,
     status: e.status,
     rating: e.rating ?? null,
     notes: e.notes ?? null,

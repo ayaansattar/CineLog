@@ -60,6 +60,7 @@ Do **not** commit unless the user asks.
 - **7**: Skipped — Google Docs lists already imported via PDF/Letterboxd paths.
 - **8**: Recs tab; candidate pool → Gemini; watchlist/discover modes; movie/TV/genre detection. Needs `GEMINI_API_KEY`.
 - **9**: Render free at https://cinelog-q45t.onrender.com — Neon Postgres, no disk. Fixed Vite install on build, static `dist/` serving, cold-start library fetch retry.
+- **Polish**: Poster hover summary (TMDB overview); genres on cards; library Heading filter (Watchlist/Watching). `Entry.overview` cached after first hover when logged in.
 
 ### Next session
 

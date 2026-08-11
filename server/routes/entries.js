@@ -178,6 +178,7 @@ router.post('/', requireAuth, async (req, res) => {
       mediaType,
       posterPath,
       genres,
+      overview,
       status = 'watchlist',
       rating,
       notes,
@@ -231,6 +232,7 @@ router.post('/', requireAuth, async (req, res) => {
         mediaType,
         posterPath: posterPath ?? null,
         genres: storeGenres(genres),
+        overview: overview != null ? String(overview).trim() || null : null,
         status,
         rating: rating !== undefined ? parseRating(rating) : null,
         notes: notes ?? null,
@@ -255,9 +257,12 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Entry not found' });
 
     const data = {};
-    const fields = ['title', 'year', 'mediaType', 'posterPath', 'status', 'notes', 'tmdbId'];
+    const fields = ['title', 'year', 'mediaType', 'posterPath', 'status', 'notes', 'tmdbId', 'overview'];
     for (const key of fields) {
       if (req.body[key] !== undefined) data[key] = req.body[key];
+    }
+    if (data.overview !== undefined) {
+      data.overview = data.overview == null ? null : String(data.overview).trim() || null;
     }
     if (req.body.genres !== undefined) data.genres = storeGenres(req.body.genres);
 

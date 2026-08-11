@@ -26,6 +26,7 @@ model Entry {
   mediaType          String
   posterPath         String?
   genres             String?
+  overview           String?
   status             String
   rating             Float?
   notes              String?

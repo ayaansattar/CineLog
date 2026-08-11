@@ -20,7 +20,7 @@ import {
 import AuthBar from './components/AuthBar';
 import FloatingBar from './components/FloatingBar';
 import LibraryView from './components/LibraryView';
-import Poster from './components/Poster';
+import PosterWithSummary, { GenreLine } from './components/PosterWithSummary';
 import RecsView from './components/RecsView';
 
 const VIEWS = [
@@ -189,6 +189,44 @@ export default function App() {
     return () => clearTimeout(handle);
   }, [query]);
 
+  function handleDetailsLoaded({ entryId, tmdbId, mediaType, overview, genres }) {
+    if (entryId) {
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.id === entryId
+            ? {
+                ...e,
+                overview: overview || e.overview,
+                genres: genres?.length ? genres : e.genres,
+              }
+            : e,
+        ),
+      );
+      if (authenticated) {
+        updateEntry(entryId, {
+          overview: overview || undefined,
+          genres: genres?.length ? genres : undefined,
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    if (tmdbId != null && mediaType) {
+      const key = `${mediaType}-${tmdbId}`;
+      setResults((prev) =>
+        prev.map((r) =>
+          `${r.mediaType}-${r.tmdbId}` === key
+            ? {
+                ...r,
+                overview: overview || r.overview,
+                genres: genres?.length ? genres : r.genres,
+              }
+            : r,
+        ),
+      );
+    }
+  }
+
   async function handleAdd(result, status = 'watchlist') {
     if (!authenticated) {
       setMessage('Log in to add titles.');
@@ -206,6 +244,7 @@ export default function App() {
         mediaType: details.mediaType,
         posterPath: details.posterPath,
         genres: details.genres,
+        overview: details.overview,
         status,
       });
       setMessage(`Added “${details.title}” to ${status}.`);
@@ -647,20 +686,30 @@ export default function App() {
                       existing ? 'border-[var(--accent)]/50' : 'border-[var(--border)]'
                     }`}
                   >
-                    <div className="relative">
-                      <Poster path={result.posterPath} title={result.title} className="aspect-[2/3] w-full" />
-                      {statusLabel && (
-                        <span className="absolute top-2 left-2 rounded bg-black/80 px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
-                          In {statusLabel.toLowerCase()}
-                        </span>
-                      )}
-                    </div>
+                    <PosterWithSummary
+                      path={result.posterPath}
+                      title={result.title}
+                      overview={result.overview || existing?.overview}
+                      genres={result.genres || existing?.genres}
+                      mediaType={result.mediaType}
+                      tmdbId={result.tmdbId}
+                      entryId={existing?.id ?? null}
+                      onDetailsLoaded={handleDetailsLoaded}
+                      badge={
+                        statusLabel ? (
+                          <span className="absolute top-2 left-2 z-[1] rounded bg-black/80 px-2 py-0.5 text-[11px] font-medium text-[var(--accent)] group-hover:opacity-0">
+                            In {statusLabel.toLowerCase()}
+                          </span>
+                        ) : null
+                      }
+                    />
                     <div className="space-y-2 p-3">
                       <div>
                         <h2 className="line-clamp-2 text-sm font-medium leading-snug">{result.title}</h2>
                         <p className="mt-1 text-xs text-[var(--muted)]">
                           {result.year ?? '—'} · {result.mediaType === 'tv' ? 'TV' : 'Movie'}
                         </p>
+                        <GenreLine genres={result.genres || existing?.genres} className="mt-1" />
                       </div>
                       {existing ? (
                         <p className="rounded-md border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-2 py-1.5 text-center text-xs text-[var(--accent)]">
@@ -739,6 +788,7 @@ export default function App() {
           onDeleteSection={handleDeleteSection}
           onReorderSections={handleReorderSections}
           onReorderEntries={handleReorderEntries}
+          onDetailsLoaded={handleDetailsLoaded}
           busyId={busyId}
         />
       </div>

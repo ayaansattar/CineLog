@@ -10,6 +10,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import Poster from './Poster';
+import PosterWithSummary, { GenreLine } from './PosterWithSummary';
 import ProgressEditor, { formatProgressLabel } from './ProgressEditor';
 import StarRating from './StarRating';
 
@@ -128,6 +129,7 @@ function EntryCard({
   onRatingChange,
   onDelete,
   onSectionChange,
+  onDetailsLoaded,
 }) {
   const progressLabel = entry.status === 'watching' ? formatProgressLabel(entry) : null;
   const showProgressEditor = canEdit && entry.status === 'watching';
@@ -156,7 +158,7 @@ function EntryCard({
         <button
           ref={setDragRef}
           type="button"
-          className="absolute top-2 right-2 z-10 cursor-grab rounded-md border border-[var(--border)] bg-black/75 px-2 py-1 text-[11px] leading-none text-[var(--text)] active:cursor-grabbing"
+          className="absolute top-2 right-2 z-20 cursor-grab rounded-md border border-[var(--border)] bg-black/75 px-2 py-1 text-[11px] leading-none text-[var(--text)] active:cursor-grabbing"
           aria-label={`Drag ${entry.title}`}
           {...listeners}
           {...attributes}
@@ -165,14 +167,23 @@ function EntryCard({
         </button>
       )}
 
-      <div className="relative">
-        <Poster path={entry.posterPath} title={entry.title} className="aspect-[2/3] w-full" />
-        {progressLabel && (
-          <span className="absolute bottom-2 left-2 max-w-[90%] truncate rounded bg-black/75 px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
-            {progressLabel}
-          </span>
-        )}
-      </div>
+      <PosterWithSummary
+        path={entry.posterPath}
+        title={entry.title}
+        overview={entry.overview}
+        genres={entry.genres}
+        mediaType={entry.mediaType}
+        tmdbId={entry.tmdbId}
+        entryId={entry.id}
+        onDetailsLoaded={onDetailsLoaded}
+        footerBadge={
+          progressLabel ? (
+            <span className="absolute bottom-2 left-2 z-[1] max-w-[90%] truncate rounded bg-black/75 px-2 py-0.5 text-[11px] font-medium text-[var(--accent)] group-hover:opacity-0">
+              {progressLabel}
+            </span>
+          ) : null
+        }
+      />
 
       <div className="flex flex-1 flex-col gap-2 p-3">
         <div className="flex-1">
@@ -180,6 +191,7 @@ function EntryCard({
           <p className="mt-1 text-xs text-[var(--muted)]">
             {entry.year ?? '—'} · {entry.mediaType === 'tv' ? 'TV' : 'Movie'}
           </p>
+          <GenreLine genres={entry.genres} className="mt-1" />
           <div className="mt-2" onPointerDown={stopDragInterference}>
             <StarRating
               value={entry.rating}
@@ -270,6 +282,7 @@ function SectionBlock({
   onRatingChange,
   onDelete,
   onSectionChange,
+  onDetailsLoaded,
 }) {
   const { attributes, listeners, setNodeRef: setHeadingDragRef, isDragging } = useDraggable({
     id: section ? headingDragId(section.id) : 'heading:noop',
@@ -385,6 +398,7 @@ function SectionBlock({
               onRatingChange={onRatingChange}
               onDelete={onDelete}
               onSectionChange={onSectionChange}
+              onDetailsLoaded={onDetailsLoaded}
             />
           ))}
         </ul>
@@ -407,11 +421,13 @@ export default function LibraryView({
   onDeleteSection,
   onReorderSections,
   onReorderEntries,
+  onDetailsLoaded,
   busyId,
 }) {
   const [tab, setTab] = useState('watchlist');
   const [mediaType, setMediaType] = useState('movie');
   const [genre, setGenre] = useState('all');
+  const [headingFilter, setHeadingFilter] = useState('all');
   const [sortBy, setSortBy] = useState('addedAt');
   const [libraryQuery, setLibraryQuery] = useState('');
   const [newHeading, setNewHeading] = useState('');
@@ -463,6 +479,13 @@ export default function LibraryView({
     if (genre !== 'all') {
       list = list.filter((e) => Array.isArray(e.genres) && e.genres.includes(genre));
     }
+    if (tab !== 'watched') {
+      if (headingFilter === 'unsorted') {
+        list = list.filter((e) => !e.sectionId || !mediaSections.some((s) => s.id === e.sectionId));
+      } else if (headingFilter !== 'all') {
+        list = list.filter((e) => e.sectionId === headingFilter);
+      }
+    }
     const q = libraryQuery.trim().toLowerCase();
     if (q) {
       list = list.filter((e) => {
@@ -475,7 +498,7 @@ export default function LibraryView({
     // Watched is filter/browse only — ignore manual section order and use chosen sort.
     if (tab === 'watched') return sortEntries(list, effectiveSort);
     return sortBySectionOrder(list, effectiveSort);
-  }, [entries, tab, mediaType, genre, libraryQuery, effectiveSort]);
+  }, [entries, tab, mediaType, genre, headingFilter, mediaSections, libraryQuery, effectiveSort]);
 
   const groups = useMemo(() => {
     if (tab === 'watched') {
@@ -493,6 +516,7 @@ export default function LibraryView({
     const byId = new Map(mediaSections.map((s) => [s.id, []]));
     const unsorted = [];
     const searching = Boolean(libraryQuery.trim());
+    const filteringHeadings = headingFilter !== 'all';
 
     for (const entry of filtered) {
       if (entry.sectionId && byId.has(entry.sectionId)) {
@@ -510,9 +534,9 @@ export default function LibraryView({
         sectionId: section.id,
         entries: sortBySectionOrder(byId.get(section.id) || [], effectiveSort),
       }))
-      .filter((group) => group.entries.length > 0 || (canDrag && !searching));
+      .filter((group) => group.entries.length > 0 || (canDrag && !searching && !filteringHeadings));
 
-    if (unsorted.length > 0 || (canDrag && mediaSections.length > 0 && !searching)) {
+    if (unsorted.length > 0 || (canDrag && mediaSections.length > 0 && !searching && !filteringHeadings)) {
       ordered.push({
         key: 'unsorted',
         section: null,
@@ -523,7 +547,7 @@ export default function LibraryView({
     }
 
     return ordered;
-  }, [filtered, mediaSections, canDrag, libraryQuery, effectiveSort, tab]);
+  }, [filtered, mediaSections, canDrag, libraryQuery, headingFilter, effectiveSort, tab]);
 
   async function reorderEntry(movingId, targetSectionId, beforeEntryId = null) {
     const allInSection = entries
@@ -654,6 +678,7 @@ export default function LibraryView({
               onClick={() => {
                 setTab(t.id);
                 setGenre('all');
+                setHeadingFilter('all');
                 if (t.id === 'watching') setSortBy('progressUpdatedAt');
                 else if (t.id === 'watched') setSortBy('rating');
                 else setSortBy('addedAt');
@@ -679,6 +704,7 @@ export default function LibraryView({
             onClick={() => {
               setMediaType(t.id);
               setGenre('all');
+              setHeadingFilter('all');
             }}
             className={`flex-1 rounded-md px-3 py-2 text-sm transition ${
               mediaType === t.id
@@ -719,6 +745,25 @@ export default function LibraryView({
             ))}
           </select>
         </label>
+
+        {tab !== 'watched' && (
+          <label className="flex min-w-[9rem] flex-1 flex-col gap-1 text-sm">
+            <span className="text-[var(--muted)]">Heading</span>
+            <select
+              value={headingFilter}
+              onChange={(e) => setHeadingFilter(e.target.value)}
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-[var(--text)] outline-none focus:border-[var(--accent)]"
+            >
+              <option value="all">All headings</option>
+              <option value="unsorted">Unsorted</option>
+              {mediaSections.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="flex min-w-[9rem] flex-1 flex-col gap-1 text-sm">
           <span className="text-[var(--muted)]">Sort</span>
@@ -823,6 +868,7 @@ export default function LibraryView({
                 onRatingChange={onRatingChange}
                 onDelete={onDelete}
                 onSectionChange={onSectionChange}
+                onDetailsLoaded={onDetailsLoaded}
               />
             ))}
           </div>
