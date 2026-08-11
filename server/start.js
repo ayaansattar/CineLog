@@ -2,8 +2,10 @@ import { execSync } from 'child_process';
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
-if (!process.env.DATABASE_URL) {
-  console.error('DATABASE_URL is required');
+if (!process.env.DATABASE_URL || process.env.DATABASE_URL.startsWith('file:')) {
+  console.error(
+    'DATABASE_URL must be a Postgres connection string (Neon). Set it in the Render Environment tab.'
+  );
   process.exit(1);
 }
 

@@ -1,5 +1,5 @@
 # Render Blueprint — free web service + Neon Postgres (no persistent disk).
-# Set DATABASE_URL / API keys in the Render dashboard (sync: false).
+# When creating the Blueprint, paste DATABASE_URL / API keys when prompted (sync: false).
 
 services:
   - type: web
@@ -7,13 +7,14 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm install && npm run build
+    # --include=dev: Vite/Tailwind live in devDependencies; Render would skip them if NODE_ENV=production.
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeployTrigger: commit
     envVars:
-      - key: NODE_ENV
-        value: production
+      - key: NODE_VERSION
+        value: "22.13.1"
       - key: DATABASE_URL
         sync: false
       - key: TMDB_API_KEY
