@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   createEntry,
   deleteEntry,
@@ -23,6 +23,8 @@ const VIEWS = [
   { id: 'recs', label: 'Recs' },
 ];
 
+const EMPTY_SCROLL = { search: 0, library: 0, recs: 0 };
+
 export default function App() {
   const [view, setView] = useState('search');
   const [query, setQuery] = useState('');
@@ -43,6 +45,13 @@ export default function App() {
   const [authConfigured, setAuthConfigured] = useState(true);
   const [showFloatingBar, setShowFloatingBar] = useState(false);
   const headerRef = useRef(null);
+  const scrollByViewRef = useRef({ ...EMPTY_SCROLL });
+
+  function changeView(next) {
+    if (next === view) return;
+    scrollByViewRef.current[view] = window.scrollY;
+    setView(next);
+  }
 
   async function refreshAuth() {
     try {
@@ -72,6 +81,10 @@ export default function App() {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, scrollByViewRef.current[view] ?? 0);
+  }, [view]);
 
   async function refreshEntries({ quiet } = {}) {
     if (!quiet) {
@@ -325,11 +338,11 @@ export default function App() {
         visible={showFloatingBar}
         view={view}
         views={VIEWS}
-        onViewChange={setView}
+        onViewChange={changeView}
         query={query}
         onQueryChange={(value) => {
           setQuery(value);
-          if (view !== 'search') setView('search');
+          if (view !== 'search') changeView('search');
         }}
       />
 
@@ -354,7 +367,7 @@ export default function App() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setView(item.id)}
+                  onClick={() => changeView(item.id)}
                   className={`rounded-md px-4 py-2 text-sm transition ${
                     view === item.id
                       ? 'bg-[var(--accent)] text-[#1a1208]'
@@ -398,8 +411,7 @@ export default function App() {
         </div>
       )}
 
-      {view === 'search' && (
-        <section>
+      <section className={view === 'search' ? undefined : 'hidden'} aria-hidden={view !== 'search'}>
           <div className="mb-4">
             <label className="block">
               <span className="mb-2 block text-sm text-[var(--muted)]">Search TMDB</span>
@@ -496,9 +508,8 @@ export default function App() {
             <p className="mt-8 text-sm text-[var(--muted)]">Your library is empty — search TMDB to add something.</p>
           )}
         </section>
-      )}
 
-      {view === 'library' && (
+      <div className={view === 'library' ? undefined : 'hidden'} aria-hidden={view !== 'library'}>
         <LibraryView
           entries={entries}
           canEdit={authenticated}
@@ -508,9 +519,9 @@ export default function App() {
           onDelete={handleDelete}
           busyId={busyId}
         />
-      )}
+      </div>
 
-      {view === 'recs' && (
+      <div className={view === 'recs' ? undefined : 'hidden'} aria-hidden={view !== 'recs'}>
         <RecsView
           canEdit={authenticated}
           onAsk={handleAskRecs}
@@ -523,7 +534,7 @@ export default function App() {
           addingId={addingId}
           busyId={busyId}
         />
-      )}
+      </div>
     </div>
   );
 }
