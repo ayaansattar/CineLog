@@ -63,7 +63,7 @@ Do **not** commit unless the user asks.
 ### Next session
 
 1. **Milestone 9** — finish Railway deploy + volume (prep already in repo; public placeholder is GitHub Pages). Set `GEMINI_API_KEY` + `TMDB_API_KEY` on Railway.
-2. Optional polish: chat history, richer taste grouping, cache candidate pools.
+2. Optional polish: chat history, cache candidate pools.
 
 ## Layout
 
