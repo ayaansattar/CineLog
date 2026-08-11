@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import entriesRouter from './routes/entries.js';
@@ -9,7 +10,9 @@ import recsRouter from './routes/recs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
-const isProd = process.env.NODE_ENV === 'production';
+const distDir = path.join(rootDir, 'dist');
+const distIndex = path.join(distDir, 'index.html');
+const serveFrontend = fs.existsSync(distIndex);
 const port = Number(process.env.PORT) || 3001;
 
 const app = express();
@@ -18,19 +21,25 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, frontend: serveFrontend });
 });
 
 app.use('/api/entries', entriesRouter);
 app.use('/api/tmdb', tmdbRouter);
 app.use('/api/recs', recsRouter);
 
-if (isProd) {
-  const distDir = path.join(rootDir, 'dist');
+if (serveFrontend) {
   app.use(express.static(distDir));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.join(distDir, 'index.html'));
+  app.get(/^(?!\/api).*/, (_req, res) => {
+    res.sendFile(distIndex);
+  });
+} else {
+  console.warn(`Frontend build not found at ${distIndex} — API only`);
+  app.get('/', (_req, res) => {
+    res
+      .status(503)
+      .type('text')
+      .send('CineLog API is running, but the frontend build (dist/) is missing.');
   });
 }
 
@@ -41,4 +50,5 @@ app.use((err, _req, res, _next) => {
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`CineLog API listening on http://0.0.0.0:${port}`);
+  console.log(`Frontend static serve: ${serveFrontend ? 'yes' : 'no'} (${distDir})`);
 });

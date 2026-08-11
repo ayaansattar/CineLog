@@ -9,7 +9,7 @@ services:
     region: oregon
     # --include=dev: Vite/Tailwind live in devDependencies; Render would skip them if NODE_ENV=production.
     buildCommand: npm install --include=dev && npm run build
-    startCommand: npm start
+    startCommand: NODE_ENV=production npm start
     healthCheckPath: /api/health
     autoDeployTrigger: commit
     envVars:
