@@ -5,6 +5,49 @@ import { serializeEntry, serializeEntries, storeGenres } from '../utils.js';
 const router = Router();
 const STATUSES = ['watchlist', 'watching', 'watched'];
 
+function toNullableInt(value) {
+  if (value === null || value === '') return null;
+  if (value === undefined) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+function toNullableString(value) {
+  if (value === null) return null;
+  if (value === undefined) return undefined;
+  const s = String(value).trim();
+  return s.length ? s : null;
+}
+
+function applyProgressDefaults(data, existing) {
+  const nextStatus = data.status ?? existing.status;
+  const mediaType = data.mediaType ?? existing.mediaType;
+
+  if (data.status === 'watching' && existing.status !== 'watching') {
+    if (mediaType === 'tv') {
+      if (data.currentSeason === undefined && existing.currentSeason == null) {
+        data.currentSeason = 1;
+      }
+      if (data.currentEpisode === undefined && existing.currentEpisode == null) {
+        data.currentEpisode = 1;
+      }
+    }
+    data.progressUpdatedAt = new Date();
+  }
+
+  const progressTouched =
+    data.currentSeason !== undefined ||
+    data.currentEpisode !== undefined ||
+    data.progressMark !== undefined;
+
+  if (progressTouched) {
+    data.progressUpdatedAt = new Date();
+    if (nextStatus === 'watchlist' && data.status === undefined) {
+      data.status = 'watching';
+    }
+  }
+}
+
 router.get('/', async (req, res) => {
   try {
     const { status } = req.query;
@@ -45,6 +88,9 @@ router.post('/', async (req, res) => {
       status = 'watchlist',
       rating,
       notes,
+      currentSeason,
+      currentEpisode,
+      progressMark,
     } = req.body;
 
     if (!title || !mediaType) {
@@ -69,6 +115,21 @@ router.post('/', async (req, res) => {
       }
     }
 
+    let season = toNullableInt(currentSeason);
+    let episode = toNullableInt(currentEpisode);
+    const mark = toNullableString(progressMark);
+    let progressUpdatedAt = null;
+
+    if (status === 'watching') {
+      if (mediaType === 'tv') {
+        if (season == null) season = 1;
+        if (episode == null) episode = 1;
+      }
+      progressUpdatedAt = new Date();
+    } else if (season != null || episode != null || mark != null) {
+      progressUpdatedAt = new Date();
+    }
+
     const entry = await prisma.entry.create({
       data: {
         tmdbId: tmdbId != null ? Number(tmdbId) : null,
@@ -80,6 +141,10 @@ router.post('/', async (req, res) => {
         status,
         rating: rating != null ? Number(rating) : null,
         notes: notes ?? null,
+        currentSeason: mediaType === 'tv' ? season ?? null : null,
+        currentEpisode: mediaType === 'tv' ? episode ?? null : null,
+        progressMark: mediaType === 'movie' ? mark ?? null : null,
+        progressUpdatedAt,
         watchedAt: status === 'watched' ? new Date() : null,
       },
     });
@@ -103,6 +168,10 @@ router.patch('/:id', async (req, res) => {
     }
     if (req.body.genres !== undefined) data.genres = storeGenres(req.body.genres);
 
+    if (req.body.currentSeason !== undefined) data.currentSeason = toNullableInt(req.body.currentSeason);
+    if (req.body.currentEpisode !== undefined) data.currentEpisode = toNullableInt(req.body.currentEpisode);
+    if (req.body.progressMark !== undefined) data.progressMark = toNullableString(req.body.progressMark);
+
     if (data.status !== undefined && !STATUSES.includes(data.status)) {
       return res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` });
     }
@@ -116,6 +185,17 @@ router.patch('/:id', async (req, res) => {
     if (data.rating != null && data.status !== 'watchlist' && data.status !== 'watching') {
       data.status = 'watched';
       if (!existing.watchedAt) data.watchedAt = new Date();
+    }
+
+    applyProgressDefaults(data, existing);
+
+    const mediaType = data.mediaType ?? existing.mediaType;
+    if (mediaType === 'movie') {
+      if (data.currentSeason !== undefined) data.currentSeason = null;
+      if (data.currentEpisode !== undefined) data.currentEpisode = null;
+    }
+    if (mediaType === 'tv' && data.progressMark !== undefined) {
+      data.progressMark = null;
     }
 
     const entry = await prisma.entry.update({

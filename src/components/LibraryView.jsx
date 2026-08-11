@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Poster from './Poster';
+import ProgressEditor, { formatProgressLabel } from './ProgressEditor';
 
 const TABS = [
   { id: 'watchlist', label: 'Watchlist' },
@@ -35,13 +36,19 @@ function sortEntries(entries, sortBy) {
         const bTime = b.watchedAt ? new Date(b.watchedAt).getTime() : 0;
         return bTime - aTime;
       });
+    case 'progressUpdatedAt':
+      return list.sort((a, b) => {
+        const aTime = a.progressUpdatedAt ? new Date(a.progressUpdatedAt).getTime() : 0;
+        const bTime = b.progressUpdatedAt ? new Date(b.progressUpdatedAt).getTime() : 0;
+        return bTime - aTime;
+      });
     case 'addedAt':
     default:
       return list.sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt));
   }
 }
 
-export default function LibraryView({ entries, onStatusChange, onDelete, busyId }) {
+export default function LibraryView({ entries, onStatusChange, onProgressChange, onDelete, busyId }) {
   const [tab, setTab] = useState('watchlist');
   const [mediaType, setMediaType] = useState('all');
   const [genre, setGenre] = useState('all');
@@ -70,7 +77,8 @@ export default function LibraryView({ entries, onStatusChange, onDelete, busyId 
     if (genre !== 'all') {
       list = list.filter((e) => Array.isArray(e.genres) && e.genres.includes(genre));
     }
-    return sortEntries(list, sortBy);
+    const effectiveSort = tab === 'watching' && sortBy === 'addedAt' ? 'progressUpdatedAt' : sortBy;
+    return sortEntries(list, effectiveSort);
   }, [entries, tab, mediaType, genre, sortBy]);
 
   return (
@@ -88,7 +96,10 @@ export default function LibraryView({ entries, onStatusChange, onDelete, busyId 
             <button
               key={t.id}
               type="button"
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                setTab(t.id);
+                setSortBy(t.id === 'watching' ? 'progressUpdatedAt' : 'addedAt');
+              }}
               className={`rounded-md px-3 py-2 text-sm transition sm:px-4 ${
                 tab === t.id
                   ? 'bg-[var(--accent)] text-[#1a1208]'
@@ -141,6 +152,7 @@ export default function LibraryView({ entries, onStatusChange, onDelete, busyId 
           >
             <option value="addedAt">Date added</option>
             <option value="title">Title</option>
+            {tab === 'watching' && <option value="progressUpdatedAt">Recently updated</option>}
             {tab === 'watched' && (
               <>
                 <option value="rating">Rating</option>
@@ -163,12 +175,22 @@ export default function LibraryView({ entries, onStatusChange, onDelete, busyId 
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {filtered.map((entry) => {
             const busy = busyId === entry.id;
+            const progressLabel = formatProgressLabel(entry);
+            const showProgressEditor = entry.status === 'watching';
+
             return (
               <li
                 key={entry.id}
                 className="flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]"
               >
-                <Poster path={entry.posterPath} title={entry.title} className="aspect-[2/3] w-full" />
+                <div className="relative">
+                  <Poster path={entry.posterPath} title={entry.title} className="aspect-[2/3] w-full" />
+                  {progressLabel && (
+                    <span className="absolute bottom-2 left-2 max-w-[90%] truncate rounded bg-black/75 px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
+                      {progressLabel}
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-1 flex-col gap-2 p-3">
                   <div className="flex-1">
                     <h3 className="line-clamp-2 text-sm font-medium leading-snug">{entry.title}</h3>
@@ -176,12 +198,15 @@ export default function LibraryView({ entries, onStatusChange, onDelete, busyId 
                       {entry.year ?? '—'} · {entry.mediaType === 'tv' ? 'TV' : 'Movie'}
                       {entry.rating != null ? ` · ${entry.rating}★` : ''}
                     </p>
-                    {Array.isArray(entry.genres) && entry.genres.length > 0 && (
-                      <p className="mt-1 line-clamp-1 text-[11px] text-[var(--muted)]">
-                        {entry.genres.slice(0, 2).join(' · ')}
-                      </p>
-                    )}
                   </div>
+
+                  {showProgressEditor && (
+                    <ProgressEditor
+                      entry={entry}
+                      disabled={busy}
+                      onSave={(progress) => onProgressChange(entry.id, progress)}
+                    />
+                  )}
 
                   <div className="flex flex-col gap-1.5">
                     {(STATUS_ACTIONS[entry.status] || []).map((action) => (

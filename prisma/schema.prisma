@@ -8,18 +8,22 @@ datasource db {
 }
 
 model Entry {
-  id         String    @id @default(cuid())
-  tmdbId     Int?
-  title      String
-  year       Int?
-  mediaType  String
-  posterPath String?
-  genres     String?
-  status     String
-  rating     Float?
-  notes      String?
-  addedAt    DateTime  @default(now())
-  watchedAt  DateTime?
+  id                 String    @id @default(cuid())
+  tmdbId             Int?
+  title              String
+  year               Int?
+  mediaType          String
+  posterPath         String?
+  genres             String?
+  status             String
+  rating             Float?
+  notes              String?
+  currentSeason      Int?
+  currentEpisode     Int?
+  progressMark       String?
+  progressUpdatedAt  DateTime?
+  addedAt            DateTime  @default(now())
+  watchedAt          DateTime?
 
   @@index([status])
   @@index([title, year])

@@ -45,7 +45,7 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 | 1 | Project scaffold + DB schema + basic CRUD for entries | done |
 | 2 | TMDB search + add to library | done |
 | 3 | Library views (watchlist / watching / watched grids) | done |
-| 4 | In-progress tracking (watching status, TV S/E, movie progress mark) | pending |
+| 4 | In-progress tracking (watching status, TV S/E, movie progress mark) | done |
 | 5 | Ratings UI | pending |
 | 6 | CSV import (Letterboxd) | pending |
 | 7 | Plain-text import | pending |
@@ -56,15 +56,16 @@ Update status: `pending` → `in_progress` → `done`. Add a one-line note under
 
 - **1–2**: Scaffolded Vite/React/Tailwind + Express + Prisma/SQLite; entries CRUD; TMDB multi-search proxy; add as watchlist/watched with poster/genres; basic library list on home.
 - **3**: Library tab with Watchlist / Watching / Watched grids; filters (type, genre) and sort; move status / remove from cards; API accepts `watching` status.
+- **4**: Progress fields (`currentSeason`/`currentEpisode`, `progressMark`, `progressUpdatedAt`); Watching cards show `S2E5` / mark overlay; inline editor + Next ep; start watching defaults TV to S1E1.
 
 ### Next up
 
-- **4**: Progress fields (TV season/episode, movie progress mark) and show them on Watching cards.
+- **5**: Ratings UI (half-star, auto-flip to watched).
 
 ## Working notes
 
 - Env: `.env` from `.env.example` — `TMDB_API_KEY` required for search; never expose to client.
 - Dev: `npm run dev` (Vite `:5173`, API `:3001`, `/api` proxied).
 - DB: `npm run db:push` after schema changes.
-- Spec also includes `watching` status + progress fields — not in schema/UI yet (milestone 4).
+- Spec progress fields are in schema/UI (milestone 4 done).
 - **Deploy**: pushed `feat: add Railway production deploy config`. Mount volume at `/app/data`, set `DATABASE_URL=file:/app/data/cinelog.db`, `NODE_ENV=production`. Generate `*.up.railway.app` domain for TMDB application URL.

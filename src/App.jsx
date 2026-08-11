@@ -107,6 +107,19 @@ export default function App() {
     }
   }
 
+  async function handleProgressChange(id, progress) {
+    setBusyId(id);
+    setMessage('');
+    try {
+      await updateEntry(id, progress);
+      await refreshEntries();
+    } catch (err) {
+      setMessage(err.message || 'Failed to update progress');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function handleDelete(id) {
     setBusyId(id);
     setMessage('');
@@ -248,6 +261,7 @@ export default function App() {
         <LibraryView
           entries={entries}
           onStatusChange={handleStatusChange}
+          onProgressChange={handleProgressChange}
           onDelete={handleDelete}
           busyId={busyId}
         />
