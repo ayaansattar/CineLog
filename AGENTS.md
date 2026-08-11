@@ -60,7 +60,7 @@ Do **not** commit unless the user asks.
 - **7**: Skipped — Google Docs lists already imported via PDF/Letterboxd paths.
 - **8**: Recs tab; candidate pool → Gemini; watchlist/discover modes; movie/TV/genre detection. Needs `GEMINI_API_KEY`.
 - **9**: Render free at https://cinelog-q45t.onrender.com — Neon Postgres, no disk. Fixed Vite install on build, static `dist/` serving, cold-start library fetch retry.
-- **Polish**: Poster hover summary (TMDB overview); genres on cards; library Heading filter (Watchlist/Watching). `Entry.overview` cached after first hover when logged in.
+- **Polish**: Poster hover summary (TMDB overview); genres on cards; library Heading filter (Watchlist/Watching). `Entry.overview` cached after first hover when logged in. Collapsible headings (persisted in localStorage). Headings scoped per status + media type (Watchlist vs Watching are separate).
 
 ### Next session
 
@@ -95,7 +95,7 @@ docs/                GitHub Pages landing (TMDB app URL)
 
 - Env: copy `.env.example` → `.env`. `DATABASE_URL` = Neon Postgres (`?sslmode=require`). `TMDB_API_KEY` + `GEMINI_API_KEY` for search/recs; `AUTH_PASSWORD` for write/recs protection; never expose secrets to the client.
 - Auth: cookie session after password login. GET library/search stay public; POST/PATCH/DELETE entries + POST recs require auth.
-- Library: Movies/TV tabs; custom headings are scoped per media type (`Section.mediaType`); assign via card dropdown / drag on watchlist & watching.
+- Library: Movies/TV tabs; custom headings scoped per status + media type (`Section.status` + `Section.mediaType`); assign via card dropdown / drag on watchlist & watching.
 - Render: free web service via `render.yaml`. No volume. Point `DATABASE_URL` at Neon. Set `AUTH_PASSWORD` in Render env.
 - Public placeholder for TMDB: https://ayaansattar.github.io/CineLog/
 - Personal import artifacts (`data/*.pdf`, `data/letterboxd-*`, `data/entries-export.json`, zips) are gitignored.

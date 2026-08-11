@@ -104,7 +104,7 @@ router.put('/reorder', requireAuth, async (req, res) => {
 
     const found = await prisma.entry.findMany({
       where: { id: { in: uniqueIds } },
-      select: { id: true, mediaType: true },
+      select: { id: true, mediaType: true, status: true },
     });
     if (found.length !== uniqueIds.length) {
       return res.status(400).json({ error: 'one or more entries not found' });
@@ -116,6 +116,11 @@ router.put('/reorder', requireAuth, async (req, res) => {
       if (found.some((e) => e.mediaType !== section.mediaType)) {
         return res.status(400).json({
           error: `all titles must be ${section.mediaType} to join this heading`,
+        });
+      }
+      if (found.some((e) => e.status !== section.status)) {
+        return res.status(400).json({
+          error: `all titles must be in ${section.status} to join this heading`,
         });
       }
     } else if (sectionId === null) {
@@ -275,9 +280,15 @@ router.patch('/:id', requireAuth, async (req, res) => {
         });
         if (!section) return res.status(400).json({ error: 'section not found' });
         const entryMediaType = data.mediaType ?? existing.mediaType;
+        const entryStatus = data.status ?? existing.status;
         if (section.mediaType !== entryMediaType) {
           return res.status(400).json({
             error: `section is for ${section.mediaType}, but this title is ${entryMediaType}`,
+          });
+        }
+        if (section.status !== entryStatus) {
+          return res.status(400).json({
+            error: `section is for ${section.status}, but this title is ${entryStatus}`,
           });
         }
         data.sectionId = section.id;
@@ -321,6 +332,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
         data.status = 'watched';
         if (!existing.watchedAt) data.watchedAt = new Date();
       }
+    }
+
+    // Headings are scoped to watchlist/watching — clear when status moves away from that heading.
+    if (data.status !== undefined && data.status !== existing.status && req.body.sectionId === undefined) {
+      data.sectionId = null;
     }
 
     applyProgressDefaults(data, existing);

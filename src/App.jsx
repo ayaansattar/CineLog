@@ -362,19 +362,22 @@ export default function App() {
     }
   }
 
-  async function handleCreateSection(name, mediaType) {
+  async function handleCreateSection(name, mediaType, status = 'watchlist') {
     if (!authenticated) {
       setMessage('Log in to add headings.');
       throw new Error('Login required');
     }
     try {
-      const created = await createSection(name, mediaType);
+      const created = await createSection(name, mediaType, status);
       setSections((prev) =>
         [...prev.filter((s) => s.id !== created.id), created].sort(
           (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
         ),
       );
-      setMessage(`Added ${mediaType === 'tv' ? 'TV' : 'movie'} heading “${name}”.`);
+      const listLabel = status === 'watching' ? 'Watching' : 'Watchlist';
+      setMessage(
+        `Added ${mediaType === 'tv' ? 'TV' : 'movie'} ${listLabel} heading “${name}”.`,
+      );
     } catch (err) {
       if (err.status === 401) setAuthenticated(false);
       setMessage(err.message || 'Failed to add heading');
@@ -421,13 +424,13 @@ export default function App() {
     }
   }
 
-  async function handleReorderSections(ids, mediaType) {
+  async function handleReorderSections(ids, mediaType, status) {
     if (!authenticated) {
       setMessage('Log in to reorder headings.');
       return;
     }
     const snapshot = sections;
-    const scoped = sections.filter((s) => s.mediaType === mediaType);
+    const scoped = sections.filter((s) => s.mediaType === mediaType && s.status === status);
     const byId = new Map(scoped.map((s) => [s.id, s]));
     const reordered = ids
       .map((id, sortOrder) => {
@@ -437,13 +440,13 @@ export default function App() {
       })
       .filter(Boolean);
     setSections((prev) => [
-      ...prev.filter((s) => s.mediaType !== mediaType),
+      ...prev.filter((s) => !(s.mediaType === mediaType && s.status === status)),
       ...reordered,
     ]);
     try {
-      const next = await reorderSections(ids, mediaType);
+      const next = await reorderSections(ids, mediaType, status);
       setSections((prev) => [
-        ...prev.filter((s) => s.mediaType !== mediaType),
+        ...prev.filter((s) => !(s.mediaType === mediaType && s.status === status)),
         ...(Array.isArray(next) ? next : []),
       ]);
     } catch (err) {

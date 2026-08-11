@@ -90,10 +90,10 @@ export function getSections(mediaType) {
   return request(`/api/sections${qs}`);
 }
 
-export function createSection(name, mediaType) {
+export function createSection(name, mediaType, status = 'watchlist') {
   return request('/api/sections', {
     method: 'POST',
-    body: JSON.stringify({ name, mediaType }),
+    body: JSON.stringify({ name, mediaType, status }),
   });
 }
 
@@ -104,10 +104,10 @@ export function updateSection(id, payload) {
   });
 }
 
-export function reorderSections(ids, mediaType) {
+export function reorderSections(ids, mediaType, status) {
   return request('/api/sections/reorder', {
     method: 'PUT',
-    body: JSON.stringify({ ids, mediaType }),
+    body: JSON.stringify({ ids, mediaType, status }),
   });
 }
 

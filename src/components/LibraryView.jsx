@@ -261,6 +261,31 @@ function EntryCard({
   );
 }
 
+const COLLAPSED_HEADINGS_KEY = 'cinelog.collapsedHeadings';
+
+function loadCollapsedHeadings() {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_HEADINGS_KEY);
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function persistCollapsedHeadings(set) {
+  try {
+    localStorage.setItem(COLLAPSED_HEADINGS_KEY, JSON.stringify([...set]));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function headingCollapseKey(sectionId, mediaType, status) {
+  const base = sectionId != null ? String(sectionId) : `unsorted:${mediaType}`;
+  return `${status}:${base}`;
+}
+
 function SectionBlock({
   sectionId,
   title,
@@ -276,6 +301,8 @@ function SectionBlock({
   onSaveEdit,
   onCancelEdit,
   onDeleteHeading,
+  collapsed,
+  onToggleCollapse,
   busyId,
   onStatusChange,
   onProgressChange,
@@ -295,6 +322,8 @@ function SectionBlock({
     disabled: !canDrag,
     data: { type: 'section', sectionId },
   });
+
+  const canCollapse = title != null && typeof onToggleCollapse === 'function';
 
   return (
     <div
@@ -345,9 +374,37 @@ function SectionBlock({
                   ⋮⋮
                 </button>
               )}
-              <h3 className="font-['Instrument_Serif'] text-2xl tracking-tight text-[var(--text)] sm:text-3xl">
-                {title}
-              </h3>
+              {canCollapse && (
+                <button
+                  type="button"
+                  onClick={onToggleCollapse}
+                  onPointerDown={stopDragInterference}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--muted)] hover:text-[var(--text)]"
+                  aria-expanded={!collapsed}
+                  aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+                  title={collapsed ? 'Expand' : 'Collapse'}
+                >
+                  <span
+                    className={`inline-block text-xs leading-none transition-transform ${
+                      collapsed ? '-rotate-90' : 'rotate-0'
+                    }`}
+                    aria-hidden
+                  >
+                    ▼
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={canCollapse ? onToggleCollapse : undefined}
+                onPointerDown={stopDragInterference}
+                className={`text-left ${canCollapse ? 'cursor-pointer' : 'cursor-default'}`}
+                disabled={!canCollapse}
+              >
+                <h3 className="font-['Instrument_Serif'] text-2xl tracking-tight text-[var(--text)] sm:text-3xl">
+                  {title}
+                </h3>
+              </button>
               <span className="text-sm tabular-nums text-[var(--muted)]">{entries.length}</span>
               {canDrag && section && (
                 <div className="ml-auto flex items-center gap-2" onPointerDown={stopDragInterference}>
@@ -372,7 +429,13 @@ function SectionBlock({
         </div>
       )}
 
-      {entries.length === 0 ? (
+      {collapsed ? (
+        canDrag && isOverSection ? (
+          <p className="rounded-lg border border-dashed border-[var(--accent)] px-4 py-4 text-center text-sm text-[var(--accent)]">
+            Drop to add here
+          </p>
+        ) : null
+      ) : entries.length === 0 ? (
         <p
           className={`rounded-lg border border-dashed px-4 py-8 text-center text-sm ${
             canDrag && isOverSection
@@ -435,6 +498,18 @@ export default function LibraryView({
   const [editingSectionId, setEditingSectionId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [active, setActive] = useState(null);
+  const [collapsedHeadings, setCollapsedHeadings] = useState(loadCollapsedHeadings);
+
+  function toggleHeadingCollapsed(sectionId) {
+    const key = headingCollapseKey(sectionId, mediaType, tab);
+    setCollapsedHeadings((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      persistCollapsedHeadings(next);
+      return next;
+    });
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -470,8 +545,11 @@ export default function LibraryView({
   const effectiveSort = tab === 'watching' && sortBy === 'addedAt' ? 'progressUpdatedAt' : sortBy;
   const canDrag = canEdit && tab !== 'watched';
   const mediaSections = useMemo(
-    () => sections.filter((s) => s.mediaType === mediaType),
-    [sections, mediaType],
+    () =>
+      sections.filter(
+        (s) => s.mediaType === mediaType && (s.status || 'watchlist') === tab,
+      ),
+    [sections, mediaType, tab],
   );
 
   const filtered = useMemo(() => {
@@ -593,7 +671,7 @@ export default function LibraryView({
       const next = [...ids];
       next.splice(from, 1);
       next.splice(to, 0, movingSectionId);
-      await onReorderSections(next, mediaType);
+      await onReorderSections(next, mediaType, tab);
       return;
     }
 
@@ -633,7 +711,7 @@ export default function LibraryView({
     if (!name || addingHeading) return;
     setAddingHeading(true);
     try {
-      await onCreateSection(name, mediaType);
+      await onCreateSection(name, mediaType, tab);
       setNewHeading('');
     } finally {
       setAddingHeading(false);
@@ -869,6 +947,15 @@ export default function LibraryView({
                 onDelete={onDelete}
                 onSectionChange={onSectionChange}
                 onDetailsLoaded={onDetailsLoaded}
+                collapsed={
+                  group.title != null &&
+                  collapsedHeadings.has(headingCollapseKey(group.sectionId, mediaType, tab))
+                }
+                onToggleCollapse={
+                  group.title != null
+                    ? () => toggleHeadingCollapsed(group.sectionId)
+                    : undefined
+                }
               />
             ))}
           </div>

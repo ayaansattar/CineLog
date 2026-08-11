@@ -4,12 +4,14 @@ import { requireAuth } from '../auth.js';
 
 const router = Router();
 const MEDIA_TYPES = ['movie', 'tv'];
+const SECTION_STATUSES = ['watchlist', 'watching'];
 
 function serializeSection(section) {
   return {
     id: section.id,
     name: section.name,
     mediaType: section.mediaType,
+    status: section.status,
     sortOrder: section.sortOrder,
     createdAt: section.createdAt,
   };
@@ -18,13 +20,26 @@ function serializeSection(section) {
 router.get('/', async (req, res) => {
   try {
     const mediaType = req.query.mediaType ? String(req.query.mediaType) : undefined;
+    const status = req.query.status ? String(req.query.status) : undefined;
     if (mediaType && !MEDIA_TYPES.includes(mediaType)) {
       return res.status(400).json({ error: 'mediaType must be movie or tv' });
     }
+    if (status && !SECTION_STATUSES.includes(status)) {
+      return res.status(400).json({ error: 'status must be watchlist or watching' });
+    }
+
+    const where = {};
+    if (mediaType) where.mediaType = mediaType;
+    if (status) where.status = status;
 
     const sections = await prisma.section.findMany({
-      where: mediaType ? { mediaType } : undefined,
-      orderBy: [{ mediaType: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
+      where: Object.keys(where).length ? where : undefined,
+      orderBy: [
+        { mediaType: 'asc' },
+        { status: 'asc' },
+        { sortOrder: 'asc' },
+        { createdAt: 'asc' },
+      ],
     });
     res.json(sections.map(serializeSection));
   } catch (err) {
@@ -37,19 +52,23 @@ router.post('/', requireAuth, async (req, res) => {
   try {
     const name = String(req.body?.name || '').trim();
     const mediaType = String(req.body?.mediaType || '').trim();
+    const status = String(req.body?.status || 'watchlist').trim();
     if (!name) return res.status(400).json({ error: 'name is required' });
     if (!MEDIA_TYPES.includes(mediaType)) {
       return res.status(400).json({ error: 'mediaType must be movie or tv' });
     }
+    if (!SECTION_STATUSES.includes(status)) {
+      return res.status(400).json({ error: 'status must be watchlist or watching' });
+    }
 
     const max = await prisma.section.aggregate({
-      where: { mediaType },
+      where: { mediaType, status },
       _max: { sortOrder: true },
     });
     const sortOrder = (max._max.sortOrder ?? -1) + 1;
 
     const section = await prisma.section.create({
-      data: { name, mediaType, sortOrder },
+      data: { name, mediaType, status, sortOrder },
     });
     res.status(201).json(serializeSection(section));
   } catch (err) {
@@ -62,21 +81,25 @@ router.put('/reorder', requireAuth, async (req, res) => {
   try {
     const ids = req.body?.ids;
     const mediaType = String(req.body?.mediaType || '').trim();
+    const status = String(req.body?.status || '').trim();
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'ids array required' });
     }
     if (!MEDIA_TYPES.includes(mediaType)) {
       return res.status(400).json({ error: 'mediaType must be movie or tv' });
     }
+    if (!SECTION_STATUSES.includes(status)) {
+      return res.status(400).json({ error: 'status must be watchlist or watching' });
+    }
 
     const existing = await prisma.section.findMany({
-      where: { mediaType },
+      where: { mediaType, status },
       select: { id: true },
     });
     const existingIds = new Set(existing.map((s) => s.id));
     if (ids.length !== existingIds.size || ids.some((id) => !existingIds.has(String(id)))) {
       return res.status(400).json({
-        error: 'ids must include every section for this media type exactly once',
+        error: 'ids must include every section for this media type and status exactly once',
       });
     }
 
@@ -90,7 +113,7 @@ router.put('/reorder', requireAuth, async (req, res) => {
     });
 
     const sections = await prisma.section.findMany({
-      where: { mediaType },
+      where: { mediaType, status },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
     res.json(sections.map(serializeSection));
