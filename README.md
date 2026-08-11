@@ -33,11 +33,13 @@ Edit `.env` and set:
 npm run db:push
 ```
 
-5. **(Optional) Import a previous SQLite export**
+5. **(Optional) Restore from a JSON export**
 
 ```bash
 npm run import:entries
 ```
+
+(`data/entries-export.json` from `npm run export:entries`)
 
 6. **Run locally**
 
@@ -98,6 +100,7 @@ Free Render services **spin down** when idle; the first request after idle can t
 - Move titles between statuses or remove them from library cards
 - Recs tab: Gemini ranks a TMDB candidate pool into grounded picks
 - Neon Postgres + Render free deploy (`render.yaml`)
+- Live: https://cinelog-q45t.onrender.com
 
 ## Letterboxd / PDF import
 

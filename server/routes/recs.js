@@ -42,7 +42,7 @@ function parseRecommendationsJson(raw) {
 }
 
 /** Detect watchlist intent from natural language. */
-export function detectRecSource(query) {
+function detectRecSource(query) {
   const q = String(query || '').toLowerCase();
 
   // Negations should stay in discover mode ("not on my watchlist", etc.)
@@ -72,7 +72,7 @@ export function detectRecSource(query) {
  * Detect movie vs TV intent.
  * @returns {'movie'|'tv'|null} null = no hard preference
  */
-export function detectMediaType(query) {
+function detectMediaType(query) {
   const q = String(query || '').toLowerCase();
 
   if (
@@ -112,7 +112,7 @@ function resolveMediaType(requested, query) {
 }
 
 /** Detect genre hints from natural language (TMDB-style names). */
-export function detectGenres(query) {
+function detectGenres(query) {
   const q = String(query || '').toLowerCase();
   const catalog = [
     ['Science Fiction', [/\bsci[\s-]?fi\b/, /\bscience fiction\b/]],

@@ -48,7 +48,7 @@ Do **not** commit unless the user asks.
 | 6 | Letterboxd CSV import (CLI one-time migration) | done |
 | 7 | Plain-text import | skipped |
 | 8 | AI recommendation chat (candidate pool → Gemini → cards) | done |
-| 9 | Production build + deploy (Render free + Neon Postgres) | in_progress |
+| 9 | Production build + deploy (Render free + Neon Postgres) | done |
 
 ### Done notes
 
@@ -59,12 +59,12 @@ Do **not** commit unless the user asks.
 - **6**: CLI Letterboxd import (`npm run import:letterboxd`). Also ran one-time PDF list import.
 - **7**: Skipped — Google Docs lists already imported via PDF/Letterboxd paths.
 - **8**: Recs tab; candidate pool → Gemini; watchlist/discover modes; movie/TV/genre detection. Needs `GEMINI_API_KEY`.
-- **9 (partial)**: Left SQLite; Prisma now Postgres. `render.yaml` is free plan (no disk). Export/import via `npm run export:entries` / `import:entries`. Local dump: `data/entries-export.json` (801 entries, gitignored).
+- **9**: Render free at https://cinelog-q45t.onrender.com — Neon Postgres, no disk. Fixed Vite install on build, static `dist/` serving, cold-start library fetch retry.
 
 ### Next session
 
-1. User sets Neon `DATABASE_URL` → `npm run db:push` → `npm run import:entries`.
-2. Deploy on Render free with same env vars (Neon + TMDB + Gemini).
+1. Optional polish: chat history, cache candidate pools, custom domain.
+2. Rotate Neon password if it was ever pasted into chat; keep Render env in sync.
 
 ## Layout
 
@@ -94,6 +94,6 @@ docs/                GitHub Pages landing (TMDB app URL)
 - Env: copy `.env.example` → `.env`. `DATABASE_URL` = Neon Postgres (`?sslmode=require`). `TMDB_API_KEY` + `GEMINI_API_KEY` for search/recs; never expose to client.
 - Render: free web service via `render.yaml`. No volume. Point `DATABASE_URL` at Neon.
 - Public placeholder for TMDB: https://ayaansattar.github.io/CineLog/
-- Personal import artifacts (`data/*.pdf`, `data/letterboxd-*`, `entries-export.json`, zips) are gitignored.
+- Personal import artifacts (`data/*.pdf`, `data/letterboxd-*`, `data/entries-export.json`, zips) are gitignored.
 - PDF import uses Python `pdfplumber` (`pip install pdfplumber`).
-- Legacy `railway.json` / old SQLite `prisma/dev.db` may still exist locally; Postgres is source of truth going forward.
+- Live app: https://cinelog-q45t.onrender.com

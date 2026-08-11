@@ -1,5 +1,8 @@
 # Prompt: Personal Movie/TV Log with AI Recommendations
 
+> **Implementation note (current stack):** Neon Postgres, Render free deploy, Gemini for recommendations.
+> The feature goals below still apply; some hosting/API names in the original brief are outdated.
+
 ## Project overview
 
 Build a web app called "CineLog" — a personal movie and TV show tracker similar to Letterboxd, with an AI-powered recommendation chatbot. Single user (me), no auth needed. Core loop: I log what I've watched and rate it, track in-progress titles (which show/episode I'm on, or where I left off in a movie), keep a watchlist, and ask an AI for suggestions based on my taste.
@@ -9,8 +12,9 @@ Build a web app called "CineLog" — a personal movie and TV show tracker simila
 - **Frontend**: React (Vite), Tailwind CSS
 - **Backend**: Node/Express
 - **Deployment model**: single deployable app — `vite build` produces a static `dist/` folder, and Express serves that folder as static files while also handling all `/api/...` routes on the same server/process. One app, one process, one deploy, no separate frontend/backend hosting.
-- **Database**: SQLite (via Prisma or Drizzle) for a single-user local-first app — simple to run, easy to inspect, and persists fine as a file alongside the app as long as the host provides a persistent disk (see Deployment section)
-- **External APIs**: TMDB (The Movie Database) for metadata/posters, Anthropic API for recommendations
+- **Database**: Neon Postgres (via Prisma)
+- **External APIs**: TMDB (The Movie Database) for metadata/posters, Google Gemini for recommendations
+- **Hosting**: Render (free web service) + Neon
 
 ## Data model
 
@@ -85,7 +89,7 @@ This is the core feature — design it carefully:
 
 1. When I type a request like "something like Pulp Fiction but funnier" or "I want a slow-burn thriller," the backend:
    - Builds a **candidate pool** from TMDB: pull `/movie/{id}/similar` and `/movie/{id}/recommendations` for my 10–15 highest-rated watched titles, plus a general trending/popular pull for variety. Dedupe against titles already in my library. Aim for ~40–80 candidates.
-   - Sends the candidate pool (title, year, genres, overview) + my taste profile (my watched titles with ratings, grouped by genre if easy) + my query to the Anthropic API.
+   - Sends the candidate pool (title, year, genres, overview) + my taste profile (my watched titles with ratings, grouped by genre if easy) + my query to the Gemini API.
    - Prompts the model to pick and rank the best 6 candidates for my specific request, with a short reason for each, and to tag each as either "matches your taste" (similar to high-rated titles) or "popular pick" (broadly liked, not necessarily matched to my ratings).
    - **Important**: constrain the model to only pick from the candidate pool you send it — don't let it freely invent titles outside that list. This keeps recommendations grounded in real, current TMDB data instead of relying on model memory.
 2. Return structured JSON from the model (title, year, tmdbId, reason, source tag) and render as cards with poster art pulled from TMDB.
@@ -100,16 +104,15 @@ This is the core feature — design it carefully:
 ## Deployment
 
 - Build as a single deployable app: Express serves the built Vite frontend (`app.use(express.static('dist'))`) and handles all API routes in the same process — no separate frontend/backend hosting.
-- Target host: **Railway** or **Fly.io** (either works well — both support persistent disk volumes, which the SQLite file needs, and both deploy straightforward Node apps via `git push` or a CLI command).
-- The SQLite file must live on a persistent volume/disk on whichever host is chosen — confirm this is configured, since some platforms (e.g. typical serverless functions) wipe local files between deploys.
-- Include a production build + start script (e.g. `npm run build && npm start`) and document the exact deploy steps for the chosen host in the README.
-- `TMDB_API_KEY` and `ANTHROPIC_API_KEY` are set as environment variables on the host platform's dashboard — never committed to the repo, never sent to the client.
+- Target host: **Render** free web service; data in **Neon Postgres** (no app disk required).
+- Include a production build + start script (e.g. `npm run build && npm start`) and document the exact deploy steps in the README.
+- `TMDB_API_KEY`, `GEMINI_API_KEY`, and `DATABASE_URL` are set as environment variables on the host — never committed to the repo, never sent to the client.
 
 ## Non-functional requirements
 
 - Responsive, works well on mobile.
-- Handle TMDB/Anthropic API failures gracefully (rate limits, no matches) — don't crash the UI, show a clear message.
-- Include a README with setup steps (get TMDB key, get Anthropic key, install, run migrations, start dev server, deploy to production host).
+- Handle TMDB/Gemini API failures gracefully (rate limits, no matches) — don't crash the UI, show a clear message.
+- Include a README with setup steps (get TMDB key, get Gemini key, Neon URL, install, run migrations, start dev server, deploy).
 
 ## Build order
 
@@ -122,8 +125,8 @@ Do this incrementally, get each step working before moving on:
 5. Ratings UI
 6. CSV import
 7. Plain-text import
-8. AI recommendation feature (candidate pool retrieval → Claude ranking → cards)
-9. Production build + deploy as a single app to Railway or Fly.io, with a persistent volume for the SQLite file
+8. AI recommendation feature (candidate pool retrieval → Gemini ranking → cards)
+9. Production build + deploy as a single app to Render with Neon Postgres
 
 ---
 

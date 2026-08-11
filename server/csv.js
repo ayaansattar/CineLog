@@ -1,7 +1,7 @@
 /**
  * Minimal CSV parser that supports quoted fields with embedded commas/newlines.
  */
-export function parseCsv(text) {
+function parseCsv(text) {
   const rows = [];
   let row = [];
   let field = '';
