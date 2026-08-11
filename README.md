@@ -10,7 +10,12 @@ Personal movie/TV tracker with TMDB search and Gemini recommendations.
 npm install
 ```
 
-2. **Environment variables**
+2. **Create a Neon database**
+
+- Sign up at [neon.tech](https://neon.tech) → new project
+- Copy the connection string (**pooled** or direct is fine) and append `?sslmode=require` if missing
+
+3. **Environment variables**
 
 ```bash
 cp .env.example .env
@@ -18,17 +23,23 @@ cp .env.example .env
 
 Edit `.env` and set:
 
-- `TMDB_API_KEY` — from [TMDB settings](https://www.themoviedb.org/settings/api) (you can deploy first, then paste the key into Railway later)
-- `GEMINI_API_KEY` — from [Google AI Studio](https://aistudio.google.com/apikey) (needed for the Recs tab)
-- `DATABASE_URL` — leave as `file:./dev.db` for local SQLite
+- `DATABASE_URL` — Neon Postgres URL
+- `TMDB_API_KEY` — from [TMDB settings](https://www.themoviedb.org/settings/api)
+- `GEMINI_API_KEY` — from [Google AI Studio](https://aistudio.google.com/apikey) (Recs tab)
 
-3. **Create the database**
+4. **Create tables**
 
 ```bash
 npm run db:push
 ```
 
-4. **Run locally**
+5. **(Optional) Import a previous SQLite export**
+
+```bash
+npm run import:entries
+```
+
+6. **Run locally**
 
 ```bash
 npm run dev
@@ -48,30 +59,33 @@ Vite proxies `/api` to the Express server.
 | `npm start` | Sync Prisma schema, then serve API + static `dist/` |
 | `npm run import:letterboxd` | Import Letterboxd export from `data/letterboxd-*/` |
 | `npm run import:pdf` | Parse + import `data/Movies.pdf` and `data/TV shows.pdf` |
-| `npm run db:push` | Sync Prisma schema to SQLite |
+| `npm run export:entries` | Dump all entries to `data/entries-export.json` |
+| `npm run import:entries` | Load `data/entries-export.json` into the current `DATABASE_URL` |
+| `npm run db:push` | Sync Prisma schema to Postgres |
 | `npm run db:studio` | Open Prisma Studio |
 
-## Deploy to Railway
+## Deploy to Render (free)
 
-One Node service: Express serves the Vite `dist/` build and `/api` on the same process.
+One Node service: Express serves the Vite `dist/` build and `/api`. Data lives in **Neon**, so no paid disk is required.
 
-1. Push this repo to GitHub (already configured as `origin`).
-2. In [Railway](https://railway.app): **New Project → Deploy from GitHub** → select `CineLog`.
-3. Add a **Volume** on the service with mount path `/app/data` (required so SQLite survives redeploys).
-4. Set **Variables** on the service:
+1. Push this repo to GitHub.
+2. In [Render](https://dashboard.render.com): **New → Blueprint** → connect the repo (`render.yaml`), or create a **Web Service** manually:
+   - **Build:** `npm install && npm run build`
+   - **Start:** `npm start`
+   - **Plan:** Free
+3. Set environment variables (same Neon DB is fine for a personal app, or create a separate Neon branch/DB for prod):
 
 | Variable | Value |
 |---|---|
 | `NODE_ENV` | `production` |
-| `DATABASE_URL` | `file:/app/data/cinelog.db` |
-| `TMDB_API_KEY` | your key (add when you have it) |
-| `GEMINI_API_KEY` | your Google AI Studio key (for Recs) |
+| `DATABASE_URL` | your Neon URL (`?sslmode=require`) |
+| `TMDB_API_KEY` | your TMDB key |
+| `GEMINI_API_KEY` | your Google AI Studio key |
 
-5. Generate a public domain: service → **Settings → Networking → Generate Domain**.
-6. Use that `*.up.railway.app` URL on the TMDB API key application form as your website / application URL.
-7. After TMDB approves, paste the key into Railway variables and redeploy if needed.
+4. Deploy → open `*.onrender.com` → check `/api/health`.
+5. Add that URL on your [TMDB API](https://www.themoviedb.org/settings/api) app if they ask for a website URL.
 
-Build/start are defined in `railway.json` (`npm run build` / `npm start`). Health check: `/api/health`.
+Free Render services **spin down** when idle; the first request after idle can take ~30–60s.
 
 ## Current features
 
@@ -82,13 +96,9 @@ Build/start are defined in `railway.json` (`npm run build` / `npm start`). Healt
 - Half-star ratings (0–5); rating a title moves it to Watched
 - One-time Letterboxd CSV import (`data/watched.csv` + `npm run import:letterboxd`)
 - Move titles between statuses or remove them from library cards
-- Recs tab: Gemini ranks a TMDB candidate pool (similar/recs + trending) into 6 grounded picks
-- Production deploy config for Railway + persistent SQLite volume
+- Recs tab: Gemini ranks a TMDB candidate pool into grounded picks
+- Neon Postgres + Render free deploy (`render.yaml`)
 
 ## Letterboxd / PDF import
 
 See [`data/README.md`](./data/README.md). Batch importers live under `scripts/` (no in-app upload UI).
-
-## Next up
-
-Finish Railway deploy.

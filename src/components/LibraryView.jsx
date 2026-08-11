@@ -185,7 +185,8 @@ export default function LibraryView({
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filtered.map((entry) => {
             const busy = busyId === entry.id;
-            const progressLabel = formatProgressLabel(entry);
+            const progressLabel =
+              entry.status === 'watching' ? formatProgressLabel(entry) : null;
             const showProgressEditor = entry.status === 'watching';
 
             return (

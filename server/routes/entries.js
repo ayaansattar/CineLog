@@ -205,6 +205,14 @@ router.patch('/:id', async (req, res) => {
 
     applyProgressDefaults(data, existing);
 
+    // Drop in-progress fields when leaving "watching" (watched / watchlist).
+    if (data.status === 'watched' || data.status === 'watchlist') {
+      data.currentSeason = null;
+      data.currentEpisode = null;
+      data.progressMark = null;
+      data.progressUpdatedAt = null;
+    }
+
     const mediaType = data.mediaType ?? existing.mediaType;
     if (mediaType === 'movie') {
       if (data.currentSeason !== undefined) data.currentSeason = null;

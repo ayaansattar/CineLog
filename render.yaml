@@ -1,0 +1,24 @@
+# Render Blueprint — free web service + Neon Postgres (no persistent disk).
+# Set DATABASE_URL / API keys in the Render dashboard (sync: false).
+
+services:
+  - type: web
+    name: cinelog
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: TMDB_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash

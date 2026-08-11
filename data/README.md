@@ -22,3 +22,11 @@ npm run import:pdf
 ```
 
 Watching sections → `watching`; everything else → `watchlist`. Dedupes against existing library.
+
+## Entry dump / restore (Neon)
+
+```bash
+npm run export:entries   # → data/entries-export.json
+npm run import:entries   # loads that file into current DATABASE_URL
+```
+

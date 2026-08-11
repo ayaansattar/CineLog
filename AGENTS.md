@@ -33,7 +33,7 @@ Do **not** commit unless the user asks.
 
 - React (Vite) + Tailwind frontend
 - Express API; serves `dist/` in production
-- Prisma + SQLite
+- Prisma + **Neon Postgres**
 - TMDB (proxied server-side); Gemini for recs (`POST /api/recs`)
 
 ## Milestones
@@ -48,31 +48,32 @@ Do **not** commit unless the user asks.
 | 6 | Letterboxd CSV import (CLI one-time migration) | done |
 | 7 | Plain-text import | skipped |
 | 8 | AI recommendation chat (candidate pool → Gemini → cards) | done |
-| 9 | Production build + deploy (Railway + persistent SQLite volume) | in_progress |
+| 9 | Production build + deploy (Render free + Neon Postgres) | in_progress |
 
 ### Done notes
 
-- **1–2**: Vite/React/Tailwind + Express + Prisma/SQLite; entries CRUD; TMDB multi-search proxy; add to library with poster/genres.
+- **1–2**: Vite/React/Tailwind + Express + Prisma; entries CRUD; TMDB multi-search proxy; add to library with poster/genres.
 - **3**: Search / Library nav; Watchlist · Watching · Watched grids; type/genre filters; sort; status moves + delete.
 - **4**: `currentSeason` / `currentEpisode` / `progressMark` / `progressUpdatedAt`; Watching card overlay + editor + Next ep.
 - **5**: Half-star ratings (left half = .5, right = full; click again clears); rating → status `watched`.
-- **6**: CLI Letterboxd import (`npm run import:letterboxd`). Also ran one-time PDF list import (`Movies.pdf` / `TV shows.pdf` → watchlist, Watching section → watching).
+- **6**: CLI Letterboxd import (`npm run import:letterboxd`). Also ran one-time PDF list import.
 - **7**: Skipped — Google Docs lists already imported via PDF/Letterboxd paths.
-- **8**: Recs tab; `POST /api/recs` builds TMDB candidate pool (similar/recs from top-rated + trending), Gemini JSON picks ≤18 with reasons/tags; add to watchlist. Supports watchlist mode (`source` auto|discover|watchlist) and hard movie/TV filtering from query phrasing (`mediaType` auto|movie|tv|any). Needs `GEMINI_API_KEY`.
+- **8**: Recs tab; candidate pool → Gemini; watchlist/discover modes; movie/TV/genre detection. Needs `GEMINI_API_KEY`.
+- **9 (partial)**: Left SQLite; Prisma now Postgres. `render.yaml` is free plan (no disk). Export/import via `npm run export:entries` / `import:entries`. Local dump: `data/entries-export.json` (801 entries, gitignored).
 
 ### Next session
 
-1. **Milestone 9** — finish Railway deploy + volume (prep already in repo; public placeholder is GitHub Pages). Set `GEMINI_API_KEY` + `TMDB_API_KEY` on Railway.
-2. Optional polish: chat history, cache candidate pools.
+1. User sets Neon `DATABASE_URL` → `npm run db:push` → `npm run import:entries`.
+2. Deploy on Render free with same env vars (Neon + TMDB + Gemini).
 
 ## Layout
 
 ```
 src/                 React app (App, components, api)
 server/              Express + Prisma helpers + routes
-prisma/              Schema (+ local SQLite via DATABASE_URL)
-scripts/             One-time / batch importers
-data/                Import sources (gitignored PDFs/exports); see data/README.md
+prisma/              Schema (Postgres via DATABASE_URL)
+scripts/             Importers + entry export/import
+data/                Import sources / exports (gitignored); see data/README.md
 docs/                GitHub Pages landing (TMDB app URL)
 ```
 
@@ -83,14 +84,16 @@ docs/                GitHub Pages landing (TMDB app URL)
 | `npm run dev` | Vite `:5173` + API `:3001` (`/api` proxied) |
 | `npm run build` / `npm start` | Production build; Express serves `dist/` |
 | `npm run db:push` | Sync Prisma schema |
+| `npm run export:entries` | Dump DB → `data/entries-export.json` |
+| `npm run import:entries` | Load export into current `DATABASE_URL` |
 | `npm run import:letterboxd` | Import Letterboxd export under `data/letterboxd-*/` |
 | `npm run import:pdf` | Parse `data/*.pdf` (needs `pdfplumber`) + import |
 
 ## Working notes
 
-- Env: copy `.env.example` → `.env`. `TMDB_API_KEY` required for search/match; `GEMINI_API_KEY` required for Recs; never expose either to the client.
-- SQLite: `DATABASE_URL=file:./dev.db` (Prisma resolves relative to `prisma/`).
-- Railway: `railway.json` ready. Mount volume at `/app/data`, set `DATABASE_URL=file:/app/data/cinelog.db`, `NODE_ENV=production`.
+- Env: copy `.env.example` → `.env`. `DATABASE_URL` = Neon Postgres (`?sslmode=require`). `TMDB_API_KEY` + `GEMINI_API_KEY` for search/recs; never expose to client.
+- Render: free web service via `render.yaml`. No volume. Point `DATABASE_URL` at Neon.
 - Public placeholder for TMDB: https://ayaansattar.github.io/CineLog/
-- Personal import artifacts (`data/*.pdf`, `data/letterboxd-*`, zips, `parsed-pdf-lists.json`) are gitignored.
+- Personal import artifacts (`data/*.pdf`, `data/letterboxd-*`, `entries-export.json`, zips) are gitignored.
 - PDF import uses Python `pdfplumber` (`pip install pdfplumber`).
+- Legacy `railway.json` / old SQLite `prisma/dev.db` may still exist locally; Postgres is source of truth going forward.
