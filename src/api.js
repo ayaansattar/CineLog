@@ -78,6 +78,37 @@ export function getRecommendations(query, source = 'auto') {
   });
 }
 
+export function getSections() {
+  return request('/api/sections');
+}
+
+export function createSection(name) {
+  return request('/api/sections', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function updateSection(id, payload) {
+  return request(`/api/sections/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function reorderSections(ids) {
+  return request('/api/sections/reorder', {
+    method: 'PUT',
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export function deleteSection(id) {
+  return request(`/api/sections/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 export function posterUrl(posterPath, size = 'w342') {
   if (!posterPath) return null;
   return `https://image.tmdb.org/t/p/${size}${posterPath}`;

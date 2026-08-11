@@ -7,6 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Section {
+  id        String   @id @default(cuid())
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  entries   Entry[]
+}
+
 model Entry {
   id                 String    @id @default(cuid())
   tmdbId             Int?
@@ -24,7 +32,10 @@ model Entry {
   progressUpdatedAt  DateTime?
   addedAt            DateTime  @default(now())
   watchedAt          DateTime?
+  sectionId          String?
+  section            Section?  @relation(fields: [sectionId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([title, year])
+  @@index([sectionId])
 }

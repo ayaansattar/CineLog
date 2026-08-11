@@ -1,15 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   createEntry,
+  createSection,
   deleteEntry,
+  deleteSection,
   getAuthStatus,
   getEntries,
   getRecommendations,
+  getSections,
   getTmdbDetails,
   login,
   logout,
   searchTmdb,
   updateEntry,
+  updateSection,
+  reorderSections,
 } from './api';
 import AuthBar from './components/AuthBar';
 import FloatingBar from './components/FloatingBar';
@@ -35,6 +40,7 @@ export default function App() {
   const [busyId, setBusyId] = useState(null);
   const [message, setMessage] = useState('');
   const [entries, setEntries] = useState([]);
+  const [sections, setSections] = useState([]);
   const [entriesLoading, setEntriesLoading] = useState(true);
   const [entriesError, setEntriesError] = useState('');
   const [recs, setRecs] = useState([]);
@@ -98,8 +104,9 @@ export default function App() {
       setEntriesError('');
     }
     try {
-      const data = await getEntries();
+      const [data, sectionData] = await Promise.all([getEntries(), getSections()]);
       setEntries(Array.isArray(data) ? data : []);
+      setSections(Array.isArray(sectionData) ? sectionData : []);
       setEntriesError('');
     } catch (err) {
       console.error(err);
@@ -118,12 +125,18 @@ export default function App() {
       try {
         // Free hosts often sleep; retry once after a short wait.
         try {
-          const data = await getEntries();
-          if (!cancelled) setEntries(Array.isArray(data) ? data : []);
+          const [data, sectionData] = await Promise.all([getEntries(), getSections()]);
+          if (!cancelled) {
+            setEntries(Array.isArray(data) ? data : []);
+            setSections(Array.isArray(sectionData) ? sectionData : []);
+          }
         } catch (firstErr) {
           await new Promise((r) => setTimeout(r, 1500));
-          const data = await getEntries();
-          if (!cancelled) setEntries(Array.isArray(data) ? data : []);
+          const [data, sectionData] = await Promise.all([getEntries(), getSections()]);
+          if (!cancelled) {
+            setEntries(Array.isArray(data) ? data : []);
+            setSections(Array.isArray(sectionData) ? sectionData : []);
+          }
         }
         if (!cancelled) setEntriesError('');
       } catch (err) {
@@ -270,6 +283,84 @@ export default function App() {
       setMessage(err.message || 'Failed to remove entry');
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function handleSectionChange(id, sectionId) {
+    if (!authenticated) {
+      setMessage('Log in to move titles.');
+      return;
+    }
+    setBusyId(id);
+    setMessage('');
+    try {
+      await updateEntry(id, { sectionId });
+      await refreshEntries({ quiet: true });
+    } catch (err) {
+      if (err.status === 401) setAuthenticated(false);
+      setMessage(err.message || 'Failed to update heading');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleCreateSection(name) {
+    if (!authenticated) {
+      setMessage('Log in to add headings.');
+      throw new Error('Login required');
+    }
+    try {
+      await createSection(name);
+      await refreshEntries({ quiet: true });
+      setMessage(`Added heading “${name}”.`);
+    } catch (err) {
+      if (err.status === 401) setAuthenticated(false);
+      setMessage(err.message || 'Failed to add heading');
+      throw err;
+    }
+  }
+
+  async function handleRenameSection(id, name) {
+    if (!authenticated) {
+      setMessage('Log in to rename headings.');
+      return;
+    }
+    try {
+      await updateSection(id, { name });
+      await refreshEntries({ quiet: true });
+    } catch (err) {
+      if (err.status === 401) setAuthenticated(false);
+      setMessage(err.message || 'Failed to rename heading');
+    }
+  }
+
+  async function handleDeleteSection(id) {
+    if (!authenticated) {
+      setMessage('Log in to delete headings.');
+      return;
+    }
+    try {
+      await deleteSection(id);
+      await refreshEntries({ quiet: true });
+      setMessage('Heading deleted. Titles moved to Unsorted.');
+    } catch (err) {
+      if (err.status === 401) setAuthenticated(false);
+      setMessage(err.message || 'Failed to delete heading');
+    }
+  }
+
+  async function handleReorderSections(ids) {
+    if (!authenticated) {
+      setMessage('Log in to reorder headings.');
+      return;
+    }
+    try {
+      const next = await reorderSections(ids);
+      setSections(Array.isArray(next) ? next : []);
+    } catch (err) {
+      if (err.status === 401) setAuthenticated(false);
+      setMessage(err.message || 'Failed to reorder headings');
+      await refreshEntries({ quiet: true });
     }
   }
 
@@ -531,11 +622,17 @@ export default function App() {
       <div className={view === 'library' ? undefined : 'hidden'} aria-hidden={view !== 'library'}>
         <LibraryView
           entries={entries}
+          sections={sections}
           canEdit={authenticated}
           onStatusChange={handleStatusChange}
           onProgressChange={handleProgressChange}
           onRatingChange={handleRatingChange}
           onDelete={handleDelete}
+          onSectionChange={handleSectionChange}
+          onCreateSection={handleCreateSection}
+          onRenameSection={handleRenameSection}
+          onDeleteSection={handleDeleteSection}
+          onReorderSections={handleReorderSections}
           busyId={busyId}
         />
       </div>

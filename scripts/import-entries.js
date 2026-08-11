@@ -42,6 +42,7 @@ function mapEntry(e) {
     progressUpdatedAt: e.progressUpdatedAt ? new Date(e.progressUpdatedAt) : null,
     addedAt: e.addedAt ? new Date(e.addedAt) : new Date(),
     watchedAt: e.watchedAt ? new Date(e.watchedAt) : null,
+    sectionId: e.sectionId ?? null,
   };
 }
 

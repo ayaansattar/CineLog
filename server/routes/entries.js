@@ -181,6 +181,18 @@ router.patch('/:id', requireAuth, async (req, res) => {
     }
     if (req.body.genres !== undefined) data.genres = storeGenres(req.body.genres);
 
+    if (req.body.sectionId !== undefined) {
+      if (req.body.sectionId === null || req.body.sectionId === '') {
+        data.sectionId = null;
+      } else {
+        const section = await prisma.section.findUnique({
+          where: { id: String(req.body.sectionId) },
+        });
+        if (!section) return res.status(400).json({ error: 'section not found' });
+        data.sectionId = section.id;
+      }
+    }
+
     if (req.body.currentSeason !== undefined) data.currentSeason = toNullableInt(req.body.currentSeason);
     if (req.body.currentEpisode !== undefined) data.currentEpisode = toNullableInt(req.body.currentEpisode);
     if (req.body.progressMark !== undefined) data.progressMark = toNullableString(req.body.progressMark);

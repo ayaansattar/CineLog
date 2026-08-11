@@ -8,6 +8,7 @@ import entriesRouter from './routes/entries.js';
 import tmdbRouter from './routes/tmdb.js';
 import recsRouter from './routes/recs.js';
 import authRouter from './routes/auth.js';
+import sectionsRouter from './routes/sections.js';
 import { isAuthConfigured } from './auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,6 +29,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/entries', entriesRouter);
+app.use('/api/sections', sectionsRouter);
 app.use('/api/tmdb', tmdbRouter);
 app.use('/api/recs', recsRouter);
 
