@@ -29,7 +29,6 @@ export default function App() {
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
-  const [addStatus, setAddStatus] = useState('watchlist');
   const [addingId, setAddingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [message, setMessage] = useState('');
@@ -148,7 +147,7 @@ export default function App() {
     return () => clearTimeout(handle);
   }, [query]);
 
-  async function handleAdd(result, status = addStatus) {
+  async function handleAdd(result, status = 'watchlist') {
     if (!authenticated) {
       setMessage('Log in to add titles.');
       return;
@@ -401,8 +400,8 @@ export default function App() {
 
       {view === 'search' && (
         <section>
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <label className="block flex-1">
+          <div className="mb-4">
+            <label className="block">
               <span className="mb-2 block text-sm text-[var(--muted)]">Search TMDB</span>
               <input
                 value={query}
@@ -412,23 +411,6 @@ export default function App() {
                 autoComplete="off"
               />
             </label>
-
-            <div className="flex rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-1">
-              {['watchlist', 'watching', 'watched'].map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => setAddStatus(status)}
-                  className={`rounded-md px-3 py-2 text-sm capitalize transition sm:px-4 ${
-                    addStatus === status
-                      ? 'bg-[var(--accent)] text-[#1a1208]'
-                      : 'text-[var(--muted)] hover:text-[var(--text)]'
-                  }`}
-                >
-                  {status}
-                </button>
-              ))}
-            </div>
           </div>
 
           {searchError && (
@@ -447,6 +429,7 @@ export default function App() {
               {results.map((result) => {
                 const key = `${result.mediaType}-${result.tmdbId}`;
                 const busy = addingId === key;
+                const editDisabled = busy || !authenticated;
                 return (
                   <li
                     key={key}
@@ -460,14 +443,42 @@ export default function App() {
                           {result.year ?? '—'} · {result.mediaType === 'tv' ? 'TV' : 'Movie'}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        disabled={busy || !authenticated}
-                        onClick={() => handleAdd(result)}
-                        className="w-full rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[#1a1208] transition hover:bg-[var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {!authenticated ? 'Log in to add' : busy ? 'Adding…' : `Add to ${addStatus}`}
-                      </button>
+                      {!authenticated ? (
+                        <p className="text-[11px] text-[var(--muted)]">Log in to add</p>
+                      ) : (
+                        <div className="flex flex-col gap-1.5">
+                          {[
+                            {
+                              status: 'watchlist',
+                              label: 'Watchlist',
+                              className:
+                                'border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--muted)] hover:text-[var(--text)]',
+                            },
+                            {
+                              status: 'watching',
+                              label: 'Watching',
+                              className:
+                                'border-[var(--accent)]/50 bg-[var(--accent)]/15 text-[var(--accent)] hover:bg-[var(--accent)]/25',
+                            },
+                            {
+                              status: 'watched',
+                              label: 'Watched',
+                              className:
+                                'border-[var(--success)]/50 bg-[var(--success)]/15 text-[var(--success)] hover:bg-[var(--success)]/25',
+                            },
+                          ].map((action) => (
+                            <button
+                              key={action.status}
+                              type="button"
+                              disabled={editDisabled}
+                              onClick={() => handleAdd(result, action.status)}
+                              className={`w-full rounded-md border px-2 py-1.5 text-xs transition disabled:opacity-60 ${action.className}`}
+                            >
+                              {busy ? 'Adding…' : action.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </li>
                 );
