@@ -176,6 +176,12 @@ export default function RecsView({
               {fromWatchlist
                 ? `Picked from ${meta.candidateCount} watchlist titles.`
                 : `Picked from ${meta.candidateCount} candidates using ${meta.seedCount} of your top titles.`}
+              {meta.mediaType && meta.mediaType !== 'any'
+                ? ` Filtered to ${meta.mediaType === 'tv' ? 'TV' : 'movies'}.`
+                : ''}
+              {meta.genres?.length
+                ? ` Preferring ${meta.genres.join('/').toLowerCase()}.`
+                : ''}
               {meta.requestedSource === 'auto' ? ` (auto → ${meta.source})` : ''}
             </p>
           )}

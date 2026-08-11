@@ -166,17 +166,36 @@ export async function buildCandidatePool(prisma) {
 
 /**
  * Candidate pool = titles already on the user's watchlist.
+ * @param {{ mediaType?: 'movie'|'tv'|null, genres?: string[] }} [options]
  */
-export async function buildWatchlistPool(prisma) {
+export async function buildWatchlistPool(prisma, { mediaType = null, genres = [] } = {}) {
   const entries = await prisma.entry.findMany();
   const tasteProfile = buildTasteProfile(entries);
 
-  const watchlist = entries
-    .filter((e) => e.status === 'watchlist')
-    .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt));
+  let watchlist = entries.filter((e) => e.status === 'watchlist');
+  if (mediaType === 'movie' || mediaType === 'tv') {
+    watchlist = watchlist.filter((e) => e.mediaType === mediaType);
+  }
+
+  const genreHints = Array.isArray(genres) ? genres : [];
+  const hasHint = (entry) => {
+    if (!genreHints.length) return false;
+    const entryGenres = parseGenresJson(entry.genres) || [];
+    return genreHints.some((hint) =>
+      entryGenres.some((g) => String(g).toLowerCase() === hint.toLowerCase())
+    );
+  };
+
+  watchlist.sort((a, b) => {
+    if (genreHints.length) {
+      const diff = Number(hasHint(b)) - Number(hasHint(a));
+      if (diff !== 0) return diff;
+    }
+    return new Date(b.addedAt) - new Date(a.addedAt);
+  });
 
   const candidates = watchlist.slice(0, TARGET_MAX).map((e, index) => ({
-    id: `w${index}`,
+    id: `c${index}`,
     entryId: e.id,
     tmdbId: e.tmdbId,
     title: e.title,

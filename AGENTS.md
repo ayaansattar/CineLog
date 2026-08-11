@@ -58,7 +58,7 @@ Do **not** commit unless the user asks.
 - **5**: Half-star ratings (left half = .5, right = full; click again clears); rating → status `watched`.
 - **6**: CLI Letterboxd import (`npm run import:letterboxd`). Also ran one-time PDF list import (`Movies.pdf` / `TV shows.pdf` → watchlist, Watching section → watching).
 - **7**: Skipped — Google Docs lists already imported via PDF/Letterboxd paths.
-- **8**: Recs tab; `POST /api/recs` builds TMDB candidate pool (similar/recs from top-rated + trending), Gemini JSON picks ≤18 with reasons/tags; add to watchlist. Also supports watchlist mode (source `auto|discover|watchlist`; auto detects “from my watchlist”). Needs `GEMINI_API_KEY`.
+- **8**: Recs tab; `POST /api/recs` builds TMDB candidate pool (similar/recs from top-rated + trending), Gemini JSON picks ≤18 with reasons/tags; add to watchlist. Supports watchlist mode (`source` auto|discover|watchlist) and hard movie/TV filtering from query phrasing (`mediaType` auto|movie|tv|any). Needs `GEMINI_API_KEY`.
 
 ### Next session
 
