@@ -9,3 +9,5 @@ data/*.zip
 data/*.pdf
 data/parsed-pdf-lists.json
 data/entries-export.json
+AGENTS.md
+cinelog-build-prompt.md
