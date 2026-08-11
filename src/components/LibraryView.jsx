@@ -121,6 +121,7 @@ function EntryCard({
   sectionId,
   sections,
   canEdit,
+  canDrag,
   busy,
   onStatusChange,
   onProgressChange,
@@ -134,24 +135,24 @@ function EntryCard({
 
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id: entryDragId(entry.id),
-    disabled: !canEdit || busy,
+    disabled: !canDrag || busy,
     data: { type: 'entry', entryId: entry.id, sectionId },
   });
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: beforeDropId(entry.id),
-    disabled: !canEdit,
+    disabled: !canDrag,
     data: { type: 'before', entryId: entry.id, sectionId },
   });
 
   return (
     <li
-      ref={setDropRef}
+      ref={canDrag ? setDropRef : undefined}
       className={`relative flex flex-col overflow-hidden rounded-xl border bg-[var(--bg-elevated)] ${
         isDragging ? 'opacity-30' : ''
       } ${isOver ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]' : 'border-[var(--border)]'}`}
     >
-      {canEdit && !busy && (
+      {canDrag && !busy && (
         <button
           ref={setDragRef}
           type="button"
@@ -200,24 +201,26 @@ function EntryCard({
 
         {canEdit ? (
           <div className="flex flex-col gap-1.5" onPointerDown={stopDragInterference}>
-            <label className="block">
-              <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--muted)]">
-                Heading
-              </span>
-              <select
-                value={entry.sectionId || ''}
-                disabled={editDisabled}
-                onChange={(e) => onSectionChange(entry.id, e.target.value || null)}
-                className="relative z-20 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)] disabled:opacity-60"
-              >
-                <option value="">No heading</option>
-                {sections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {canDrag && (
+              <label className="block">
+                <span className="mb-1 block text-[10px] uppercase tracking-wide text-[var(--muted)]">
+                  Heading
+                </span>
+                <select
+                  value={entry.sectionId || ''}
+                  disabled={editDisabled}
+                  onChange={(e) => onSectionChange(entry.id, e.target.value || null)}
+                  className="relative z-20 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)] disabled:opacity-60"
+                >
+                  <option value="">No heading</option>
+                  {sections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             {(STATUS_ACTIONS[entry.status] || []).map((action) => (
               <button
                 key={action.status}
@@ -253,6 +256,7 @@ function SectionBlock({
   entries,
   sections,
   canEdit,
+  canDrag,
   editing,
   editingName,
   setEditingName,
@@ -269,21 +273,21 @@ function SectionBlock({
 }) {
   const { attributes, listeners, setNodeRef: setHeadingDragRef, isDragging } = useDraggable({
     id: section ? headingDragId(section.id) : 'heading:noop',
-    disabled: !canEdit || !section,
+    disabled: !canDrag || !section,
     data: { type: 'heading', sectionId: section?.id ?? null },
   });
 
   const { setNodeRef: setSectionDropRef, isOver: isOverSection } = useDroppable({
     id: containerDropId(sectionId),
-    disabled: !canEdit,
+    disabled: !canDrag,
     data: { type: 'section', sectionId },
   });
 
   return (
     <div
-      ref={setSectionDropRef}
+      ref={canDrag ? setSectionDropRef : undefined}
       className={`rounded-xl transition ${
-        isOverSection ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]' : ''
+        canDrag && isOverSection ? 'ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]' : ''
       }`}
     >
       {title != null && (
@@ -316,7 +320,7 @@ function SectionBlock({
             </form>
           ) : (
             <>
-              {canEdit && section && (
+              {canDrag && section && (
                 <button
                   ref={setHeadingDragRef}
                   type="button"
@@ -332,7 +336,7 @@ function SectionBlock({
                 {title}
               </h3>
               <span className="text-sm tabular-nums text-[var(--muted)]">{entries.length}</span>
-              {canEdit && section && (
+              {canDrag && section && (
                 <div className="ml-auto flex items-center gap-2" onPointerDown={stopDragInterference}>
                   <button
                     type="button"
@@ -358,12 +362,12 @@ function SectionBlock({
       {entries.length === 0 ? (
         <p
           className={`rounded-lg border border-dashed px-4 py-8 text-center text-sm ${
-            isOverSection
+            canDrag && isOverSection
               ? 'border-[var(--accent)] text-[var(--accent)]'
               : 'border-[var(--border)] text-[var(--muted)]'
           }`}
         >
-          Drop titles here
+          {canDrag ? 'Drop titles here' : 'No titles here'}
         </p>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
@@ -374,6 +378,7 @@ function SectionBlock({
               sectionId={sectionId}
               sections={sections}
               canEdit={canEdit}
+              canDrag={canDrag}
               busy={busyId === entry.id}
               onStatusChange={onStatusChange}
               onProgressChange={onProgressChange}
@@ -447,6 +452,7 @@ export default function LibraryView({
   }, [entries, tab, mediaType]);
 
   const effectiveSort = tab === 'watching' && sortBy === 'addedAt' ? 'progressUpdatedAt' : sortBy;
+  const canDrag = canEdit && tab !== 'watched';
 
   const filtered = useMemo(() => {
     let list = entries.filter((e) => e.status === tab && e.mediaType === mediaType);
@@ -462,10 +468,24 @@ export default function LibraryView({
         return title.includes(q) || year.includes(q) || genreText.includes(q);
       });
     }
+    // Watched is filter/browse only — ignore manual section order and use chosen sort.
+    if (tab === 'watched') return sortEntries(list, effectiveSort);
     return sortBySectionOrder(list, effectiveSort);
   }, [entries, tab, mediaType, genre, libraryQuery, effectiveSort]);
 
   const groups = useMemo(() => {
+    if (tab === 'watched') {
+      return [
+        {
+          key: 'watched-flat',
+          section: null,
+          title: null,
+          sectionId: null,
+          entries: filtered,
+        },
+      ];
+    }
+
     const byId = new Map(sections.map((s) => [s.id, []]));
     const unsorted = [];
     const searching = Boolean(libraryQuery.trim());
@@ -486,9 +506,9 @@ export default function LibraryView({
         sectionId: section.id,
         entries: sortBySectionOrder(byId.get(section.id) || [], effectiveSort),
       }))
-      .filter((group) => group.entries.length > 0 || (canEdit && !searching));
+      .filter((group) => group.entries.length > 0 || (canDrag && !searching));
 
-    if (unsorted.length > 0 || (canEdit && sections.length > 0 && !searching)) {
+    if (unsorted.length > 0 || (canDrag && sections.length > 0 && !searching)) {
       ordered.push({
         key: 'unsorted',
         section: null,
@@ -499,7 +519,7 @@ export default function LibraryView({
     }
 
     return ordered;
-  }, [filtered, sections, canEdit, libraryQuery, effectiveSort]);
+  }, [filtered, sections, canDrag, libraryQuery, effectiveSort, tab]);
 
   async function reorderEntry(movingId, targetSectionId, beforeEntryId = null) {
     const allInSection = entries
@@ -524,7 +544,7 @@ export default function LibraryView({
   async function handleDragEnd(event) {
     const { active: drag, over } = event;
     setActive(null);
-    if (!over || !canEdit) return;
+    if (!over || !canDrag) return;
 
     const dragType = drag.data.current?.type;
 
@@ -614,9 +634,11 @@ export default function LibraryView({
           <h2 className="font-['Instrument_Serif'] text-3xl sm:text-4xl">Library</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             {entries.length} title{entries.length === 1 ? '' : 's'} saved
-            {canEdit
+            {canDrag
               ? ' · Change heading in the dropdown, or drag with the ⋮⋮ handle'
-              : ''}
+              : tab === 'watched'
+                ? ' · Browse with search and filters'
+                : ''}
           </p>
         </div>
 
@@ -714,7 +736,7 @@ export default function LibraryView({
         </label>
       </div>
 
-      {canEdit && (
+      {canDrag && (
         <form onSubmit={submitHeading} className="mb-6 flex flex-wrap items-center gap-2">
           <input
             value={newHeading}
@@ -747,6 +769,7 @@ export default function LibraryView({
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={(event) => {
+            if (!canDrag) return;
             const type = event.active.data.current?.type;
             if (type === 'entry') {
               setActive({ type: 'entry', entryId: event.active.data.current.entryId });
@@ -767,7 +790,8 @@ export default function LibraryView({
                 entries={group.entries}
                 sections={sections}
                 canEdit={canEdit}
-                editing={group.section && editingSectionId === group.section.id}
+                canDrag={canDrag}
+                editing={Boolean(canDrag && group.section && editingSectionId === group.section.id)}
                 editingName={editingName}
                 setEditingName={setEditingName}
                 onStartEdit={() => {
@@ -795,18 +819,20 @@ export default function LibraryView({
             ))}
           </div>
 
-          <DragOverlay dropAnimation={null}>
-            {overlayEntry ? (
-              <div className="w-36 overflow-hidden rounded-xl border border-[var(--accent)] bg-[var(--bg-elevated)] shadow-xl">
-                <Poster path={overlayEntry.posterPath} title={overlayEntry.title} className="aspect-[2/3] w-full" />
-                <p className="line-clamp-2 p-2 text-xs font-medium">{overlayEntry.title}</p>
-              </div>
-            ) : overlayHeading ? (
-              <div className="rounded-lg border border-[var(--accent)] bg-[var(--bg-elevated)] px-4 py-2 font-['Instrument_Serif'] text-xl shadow-xl">
-                {overlayHeading.name}
-              </div>
-            ) : null}
-          </DragOverlay>
+          {canDrag && (
+            <DragOverlay dropAnimation={null}>
+              {overlayEntry ? (
+                <div className="w-36 overflow-hidden rounded-xl border border-[var(--accent)] bg-[var(--bg-elevated)] shadow-xl">
+                  <Poster path={overlayEntry.posterPath} title={overlayEntry.title} className="aspect-[2/3] w-full" />
+                  <p className="line-clamp-2 p-2 text-xs font-medium">{overlayEntry.title}</p>
+                </div>
+              ) : overlayHeading ? (
+                <div className="rounded-lg border border-[var(--accent)] bg-[var(--bg-elevated)] px-4 py-2 font-['Instrument_Serif'] text-xl shadow-xl">
+                  {overlayHeading.name}
+                </div>
+              ) : null}
+            </DragOverlay>
+          )}
         </DndContext>
       )}
     </section>
