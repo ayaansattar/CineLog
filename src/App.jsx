@@ -86,6 +86,12 @@ export default function App() {
     window.scrollTo(0, scrollByViewRef.current[view] ?? 0);
   }, [view]);
 
+  useEffect(() => {
+    if (!message) return undefined;
+    const id = window.setTimeout(() => setMessage(''), 4000);
+    return () => window.clearTimeout(id);
+  }, [message]);
+
   async function refreshEntries({ quiet } = {}) {
     if (!quiet) {
       setEntriesLoading(true);
@@ -389,9 +395,22 @@ export default function App() {
       </header>
 
       {message && (
-        <p className="mb-6 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm">
-          {message}
-        </p>
+        <div
+          role="status"
+          className="fixed inset-x-0 bottom-4 z-[60] flex justify-center px-4 pointer-events-none"
+        >
+          <div className="pointer-events-auto flex max-w-lg items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3 text-sm shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
+            <p className="flex-1">{message}</p>
+            <button
+              type="button"
+              onClick={() => setMessage('')}
+              className="shrink-0 text-[var(--muted)] transition hover:text-[var(--text)]"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        </div>
       )}
 
       {entriesLoading && (
